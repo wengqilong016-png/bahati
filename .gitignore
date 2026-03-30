@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+*.local
+
+apps/driver/dist/
+apps/boss/dist/

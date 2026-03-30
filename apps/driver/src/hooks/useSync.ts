@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { startSync } from '../sync';
+import { startSync } from '../lib/sync';
 import { useOnlineStatus } from './useOnlineStatus';
 import { useEffect } from 'react';
 

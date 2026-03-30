@@ -2,11 +2,12 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { NavBar } from './components/NavBar';
 import { LoginPage } from './pages/LoginPage';
+import { HomePage } from './pages/HomePage';
 import { MachineListPage } from './pages/MachineListPage';
 import { DailyTaskPage } from './pages/DailyTaskPage';
 import { ScoreResetPage } from './pages/ScoreResetPage';
 import { OnboardMachinePage } from './pages/OnboardMachinePage';
-import { SettlementPage } from './pages/SettlementPage';
+import { SummaryPage } from './pages/SummaryPage';
 import { PendingSyncPage } from './pages/PendingSyncPage';
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,14 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/home"
+          element={
+            <ProtectedLayout>
+              <HomePage />
+            </ProtectedLayout>
+          }
+        />
         <Route
           path="/machines"
           element={
@@ -68,10 +77,10 @@ export default function App() {
           }
         />
         <Route
-          path="/settlement"
+          path="/summary"
           element={
             <ProtectedLayout>
-              <SettlementPage />
+              <SummaryPage />
             </ProtectedLayout>
           }
         />
@@ -83,7 +92,7 @@ export default function App() {
             </ProtectedLayout>
           }
         />
-        <Route path="*" element={<Navigate to="/machines" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </BrowserRouter>
   );

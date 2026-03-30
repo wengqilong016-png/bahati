@@ -1,8 +1,10 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { db } from '../lib/db';
 import { useAuth } from '../hooks/useAuth';
+import { validateScoreResetRequest } from '../lib/validation';
+import { saveScoreResetRequest } from '../lib/actions';
 
 export function ScoreResetPage() {
   const { machineId } = useParams<{ machineId: string }>();
@@ -16,42 +18,24 @@ export function ScoreResetPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const parsedNewScore = parseInt(newScore, 10);
+  const scoreError = newScore !== '' && machine
+    ? validateScoreResetRequest(parsedNewScore, machine.last_recorded_score)
+    : null;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user || !machine) return;
     setError(null);
     setSaving(true);
 
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-
     try {
-      await db.score_reset_requests.add({
-        id,
-        machine_id: machine.id,
-        current_score: machine.last_recorded_score,
-        requested_new_score: parseInt(newScore, 10),
+      await saveScoreResetRequest({
+        machineId: machine.id,
+        currentScore: machine.last_recorded_score,
+        requestedNewScore: parsedNewScore,
         reason,
-        sync_status: 'pending',
-        created_at: now,
       });
-
-      await db.sync_queue.add({
-        table_name: 'score_reset_requests',
-        record_id: id,
-        operation: 'insert',
-        payload: JSON.stringify({
-          id,
-          machine_id: machine.id,
-          current_score: machine.last_recorded_score,
-          requested_new_score: parseInt(newScore, 10),
-          reason,
-        }),
-        retry_count: 0,
-        last_error: null,
-        created_at: now,
-      });
-
       setSaved(true);
       setTimeout(() => navigate('/machines'), 1200);
     } catch (err) {
@@ -93,8 +77,18 @@ export function ScoreResetPage() {
             onChange={e => setNewScore(e.target.value)}
             required
             min={0}
-            style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 16, boxSizing: 'border-box' }}
+            placeholder={`Must be < ${machine.last_recorded_score}`}
+            style={{
+              width: '100%', padding: '10px 12px',
+              border: `1px solid ${scoreError ? '#c62828' : '#ddd'}`,
+              borderRadius: 6, fontSize: 16, boxSizing: 'border-box',
+            }}
           />
+          {scoreError && (
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#c62828' }}>
+              ⚠️ {scoreError}
+            </p>
+          )}
         </div>
 
         <div style={{ marginBottom: 24 }}>
@@ -111,8 +105,8 @@ export function ScoreResetPage() {
 
         <button
           type="submit"
-          disabled={saving}
-          style={{ width: '100%', padding: 14, background: '#0066CC', color: '#fff', border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
+          disabled={saving || !!scoreError}
+          style={{ width: '100%', padding: 14, background: (saving || scoreError) ? '#ccc' : '#0066CC', color: '#fff', border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 600, cursor: (saving || scoreError) ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
         >
           {saving ? 'Submitting...' : 'Submit Reset Request'}
         </button>

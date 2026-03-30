@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { db } from '../lib/db';
 import { useSync } from '../hooks/useSync';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
