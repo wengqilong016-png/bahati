@@ -211,7 +211,10 @@ export async function retryPendingUploads(): Promise<void> {
     try {
       const response = await fetch(item.dataUrl);
       const blob = await response.blob();
-      const file = new File([blob], 'photo.jpg', { type: blob.type || 'image/jpeg' });
+      // Derive the original extension from the storage path
+      const pathExt = item.path.split('.').pop() ?? 'jpg';
+      const mimeType = blob.type || `image/${pathExt}`;
+      const file = new File([blob], `photo.${pathExt}`, { type: mimeType });
 
       const { error } = await supabase.storage
         .from(item.bucket)

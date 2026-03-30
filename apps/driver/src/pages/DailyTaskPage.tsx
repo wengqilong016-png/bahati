@@ -15,7 +15,7 @@ export function DailyTaskPage() {
   const kiosk = useLiveQuery(() => db.kiosks.get(kioskId ?? ''), [kioskId]);
 
   // Stable ID for storage path — reuse existing task's ID when one already exists
-  const stableIdRef = useRef<string>(crypto.randomUUID());
+  const taskIdRef = useRef<string>(crypto.randomUUID());
   const existingTask = useLiveQuery(
     () => {
       if (!kioskId) return undefined;
@@ -24,7 +24,7 @@ export function DailyTaskPage() {
     },
     [kioskId],
   );
-  const taskId = existingTask?.id ?? stableIdRef.current;
+  const taskId = existingTask?.id ?? taskIdRef.current;
 
   const [currentScore, setCurrentScore] = useState('');
   const [notes, setNotes] = useState('');

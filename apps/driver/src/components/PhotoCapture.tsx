@@ -32,6 +32,10 @@ export function PhotoCapture({
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState<UploadItem[]>([]);
 
+  // Keep a ref to the latest photos so async upload callbacks don't close over stale values
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
+
   const atLimit = photos.length + uploading.length >= maxPhotos;
 
   const processFile = async (file: File) => {
@@ -42,10 +46,11 @@ export function PhotoCapture({
 
     try {
       const url = await uploadFn(file);
-      // Remove from uploading list and push to parent's photos
+      // Remove from uploading list and push to parent's photos.
+      // Use photosRef.current to avoid stale closure when multiple uploads complete concurrently.
       setUploading(prev => prev.filter(u => u.id !== id));
       URL.revokeObjectURL(previewUrl);
-      onPhotosChange([...photos, url]);
+      onPhotosChange([...photosRef.current, url]);
     } catch (err) {
       const error = err instanceof Error ? err.message : '上传失败';
       setUploading(prev =>
@@ -71,7 +76,7 @@ export function PhotoCapture({
         const url = await uploadFn(item.file);
         setUploading(prev => prev.filter(u => u.id !== item.id));
         URL.revokeObjectURL(item.previewUrl);
-        onPhotosChange([...photos, url]);
+        onPhotosChange([...photosRef.current, url]);
       } catch (err) {
         const error = err instanceof Error ? err.message : '上传失败';
         setUploading(prev =>
