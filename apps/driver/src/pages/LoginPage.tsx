@@ -19,7 +19,7 @@ export function LoginPage() {
     if (err) {
       setError(err);
     } else {
-      navigate('/machines');
+      navigate('/home');
     }
   };
 

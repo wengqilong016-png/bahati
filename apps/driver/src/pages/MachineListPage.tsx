@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate } from 'react-router-dom';
-import { db } from '../db';
+import { db } from '../lib/db';
 
 export function MachineListPage() {
   const machines = useLiveQuery(() => db.machines.toArray(), []);

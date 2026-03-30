@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { db } from '../lib/db';
 import { useAuth } from '../hooks/useAuth';
 
 export function ScoreResetPage() {
