@@ -4,6 +4,7 @@ import type {
   LocalTask,
   LocalScoreResetRequest,
   LocalKioskOnboarding,
+  LocalReconciliation,
   SyncQueueItem,
 } from './types';
 
@@ -12,6 +13,7 @@ export type {
   LocalTask,
   LocalScoreResetRequest,
   LocalKioskOnboarding,
+  LocalReconciliation,
   SyncQueueItem,
 };
 
@@ -21,6 +23,7 @@ export class SmartKioskDB extends Dexie {
   score_reset_requests!: Table<LocalScoreResetRequest>;
   kiosk_onboarding_records!: Table<LocalKioskOnboarding>;
   sync_queue!: Table<SyncQueueItem>;
+  reconciliations!: Table<LocalReconciliation>;
 
   constructor() {
     super('SmartKioskDB');
@@ -49,6 +52,16 @@ export class SmartKioskDB extends Dexie {
       score_reset_requests: 'id, kiosk_id, sync_status',
       kiosk_onboarding_records: 'id, kiosk_id, onboarding_type, sync_status',
       sync_queue: '++id, table_name, record_id, operation',
+    });
+
+    // Version 5 — Phase 2 reconciliation: adds reconciliations store.
+    this.version(5).stores({
+      kiosks: 'id, serial_number, status',
+      tasks: 'id, kiosk_id, task_date, sync_status, settlement_status',
+      score_reset_requests: 'id, kiosk_id, sync_status',
+      kiosk_onboarding_records: 'id, kiosk_id, onboarding_type, sync_status',
+      sync_queue: '++id, table_name, record_id, operation',
+      reconciliations: 'id, driver_id, reconciliation_date, status',
     });
   }
 }

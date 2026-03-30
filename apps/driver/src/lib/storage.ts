@@ -61,7 +61,9 @@ function fileToDataUrl(file: File): Promise<string> {
 
 /**
  * Compress the image if it exceeds 2 MB.
- * Uses a canvas-based resize to max 1920 px width, JPEG quality 0.85.
+ * Resizes to max 1920 px width then progressively lowers JPEG quality (0.85 → 0.70 → 0.55 → 0.40)
+ * until the result is ≤ 2 MB or the minimum quality is reached.
+ * Always returns a JPEG File named with a `.jpg` extension.
  */
 async function compressIfNeeded(file: File): Promise<File> {
   if (file.size <= MAX_SIZE_BYTES) return file;
@@ -86,18 +88,34 @@ async function compressIfNeeded(file: File): Promise<File> {
         return;
       }
       ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob(
-        blob => {
-          if (!blob) {
-            reject(new Error('图片压缩失败'));
-            return;
-          }
-          const name = file.name.replace(/\.[^.]+$/, '.jpg');
-          resolve(new File([blob], name, { type: 'image/jpeg' }));
-        },
-        'image/jpeg',
-        0.85,
-      );
+
+      const name = file.name.replace(/\.[^.]+$/, '.jpg');
+
+      const tryCompress = (quality: number) => {
+        canvas.toBlob(
+          blob => {
+            if (!blob) {
+              reject(new Error('图片压缩失败'));
+              return;
+            }
+            if (blob.size <= MAX_SIZE_BYTES) {
+              resolve(new File([blob], name, { type: 'image/jpeg' }));
+              return;
+            }
+            const nextQuality = quality - 0.15;
+            if (nextQuality >= 0.4) {
+              tryCompress(nextQuality);
+              return;
+            }
+            // Compressed to minimum quality — accept even if still above limit
+            resolve(new File([blob], name, { type: 'image/jpeg' }));
+          },
+          'image/jpeg',
+          quality,
+        );
+      };
+
+      tryCompress(0.85);
     };
 
     img.onerror = () => {
@@ -110,16 +128,19 @@ async function compressIfNeeded(file: File): Promise<File> {
 }
 
 /**
- * Upload a (possibly compressed) file to a Supabase Storage bucket.
+ * Compress (if needed), then upload a file to a Supabase Storage bucket.
+ * The caller provides a `buildPath` function that receives the final compressed
+ * File so the storage path extension always matches the uploaded content type.
  * Returns the public URL on success, or throws with a Chinese error message.
  * On failure also enqueues the upload for retry on next sync.
  */
 async function uploadFileToBucket(
   file: File,
   bucket: 'task-photos' | 'onboarding-photos',
-  path: string,
+  buildPath: (compressed: File) => string,
 ): Promise<string> {
   const compressed = await compressIfNeeded(file);
+  const path = buildPath(compressed);
 
   const { error } = await supabase.storage.from(bucket).upload(path, compressed, {
     upsert: true,
@@ -154,6 +175,7 @@ async function uploadFileToBucket(
  * Bucket:  task-photos
  * Path:    {driver_id}/{task_date}/{taskId}/{timestamp}.{ext}
  *
+ * task_date uses UTC (same as saveDailyTask) so the folder always matches the record.
  * Returns the public URL of the uploaded image.
  */
 export async function uploadTaskPhoto(file: File, taskId: string): Promise<string> {
@@ -162,18 +184,13 @@ export async function uploadTaskPhoto(file: File, taskId: string): Promise<strin
   } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录，无法上传照片');
 
-  const taskDate = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Nairobi',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
+  // Use UTC to match task_date written by saveDailyTask()
+  const taskDate = new Date().toISOString().slice(0, 10);
 
-  const ext = file.name.split('.').pop() ?? 'jpg';
-  const filename = `${Date.now()}.${ext}`;
-  const path = `${user.id}/${taskDate}/${taskId}/${filename}`;
-
-  return uploadFileToBucket(file, 'task-photos', path);
+  return uploadFileToBucket(file, 'task-photos', compressed => {
+    const ext = compressed.name.split('.').pop() ?? 'jpg';
+    return `${user.id}/${taskDate}/${taskId}/${Date.now()}.${ext}`;
+  });
 }
 
 /**
@@ -189,11 +206,10 @@ export async function uploadOnboardingPhoto(file: File, onboardingId: string): P
   } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录，无法上传照片');
 
-  const ext = file.name.split('.').pop() ?? 'jpg';
-  const filename = `${Date.now()}.${ext}`;
-  const path = `${user.id}/${onboardingId}/${filename}`;
-
-  return uploadFileToBucket(file, 'onboarding-photos', path);
+  return uploadFileToBucket(file, 'onboarding-photos', compressed => {
+    const ext = compressed.name.split('.').pop() ?? 'jpg';
+    return `${user.id}/${onboardingId}/${Date.now()}.${ext}`;
+  });
 }
 
 /**
@@ -228,5 +244,11 @@ export async function retryPendingUploads(): Promise<void> {
     }
   }
 
-  setPendingQueue(remaining);
+  try {
+    setPendingQueue(remaining);
+  } catch {
+    // If localStorage is unavailable or quota is exceeded, don't let it
+    // block the main sync cycle — remaining items will be re-queued next time.
+    console.warn('[storage] Failed to persist pending photo upload queue');
+  }
 }

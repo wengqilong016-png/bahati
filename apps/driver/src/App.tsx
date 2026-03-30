@@ -10,6 +10,7 @@ import { OnboardKioskPage } from './pages/OnboardMachinePage';
 import { SummaryPage } from './pages/SummaryPage';
 import { PendingSyncPage } from './pages/PendingSyncPage';
 import { SettlementPage } from './pages/SettlementPage';
+import { ReconciliationPage } from './pages/ReconciliationPage';
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -98,6 +99,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <SettlementPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/reconciliation"
+          element={
+            <ProtectedLayout>
+              <ReconciliationPage />
             </ProtectedLayout>
           }
         />

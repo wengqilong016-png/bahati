@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 export interface PhotoCaptureProps {
   /** Successfully uploaded photo URLs (controlled by parent). */
@@ -35,6 +35,17 @@ export function PhotoCapture({
   // Keep a ref to the latest photos so async upload callbacks don't close over stale values
   const photosRef = useRef(photos);
   photosRef.current = photos;
+
+  // Track latest uploading items for cleanup on unmount
+  const uploadingRef = useRef(uploading);
+  uploadingRef.current = uploading;
+
+  // Revoke all pending object URLs when the component unmounts to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      uploadingRef.current.forEach(u => URL.revokeObjectURL(u.previewUrl));
+    };
+  }, []);
 
   const atLimit = photos.length + uploading.length >= maxPhotos;
 

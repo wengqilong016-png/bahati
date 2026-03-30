@@ -63,6 +63,7 @@ function KpiCard({ title, value, icon, color, href }: {
 export function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary>(defaultSummary);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,17 +84,8 @@ export function DashboardPage() {
           .from('task_settlements')
           .select('gross_revenue, exchange_amount, expense_amount, dividend_method, dividend_amount')
           .eq('task_date', today),
-        // Merchant totals
-        // TODO [未指定 / unspecified]: merchants.retained_balance & debt_balance are
-        // column-level REVOKED for authenticated role (Phase 2). A Boss-only
-        // SECURITY DEFINER read RPC is needed. Using merchant_balance_snapshots
-        // as fallback for now.
-        // We fetch only the most recent snapshot date to keep the query bounded.
-        supabase
-          .from('merchant_balance_snapshots')
-          .select('merchant_id, retained_balance, debt_balance, snapshot_date')
-          .order('snapshot_date', { ascending: false })
-          .limit(500),
+        // Merchant totals via Boss-only SECURITY DEFINER RPC
+        supabase.rpc('read_merchant_balances'),
         // All active drivers
         supabase
           .from('drivers')
@@ -134,20 +126,13 @@ export function DashboardPage() {
         }
       }
 
-      // Merchant aggregates (from snapshots — deduplicate to latest per merchant)
+      // Merchant aggregates from read_merchant_balances RPC
       let merchantTotalDebt = 0;
       let merchantTotalRetained = 0;
       if (merchantsRes.error) {
-        console.error('[dashboard] merchant_balance_snapshots error:', merchantsRes.error.message);
+        setError('数据加载失败');
       } else {
-        const snapshots = merchantsRes.data ?? [];
-        const latestByMerchant = new Map<string, { retained_balance: number; debt_balance: number }>();
-        for (const s of snapshots as { merchant_id: string; retained_balance: number; debt_balance: number }[]) {
-          if (!latestByMerchant.has(s.merchant_id)) {
-            latestByMerchant.set(s.merchant_id, s);
-          }
-        }
-        for (const m of latestByMerchant.values()) {
+        for (const m of (merchantsRes.data ?? []) as { merchant_id: string; retained_balance: number; debt_balance: number }[]) {
           merchantTotalDebt += Number(m.debt_balance) || 0;
           merchantTotalRetained += Number(m.retained_balance) || 0;
         }
@@ -189,6 +174,7 @@ export function DashboardPage() {
         <p style={{ color: '#666', textAlign: 'center', padding: 40 }}>Loading...</p>
       ) : (
         <>
+          {error && <div style={{ background: '#fce8e6', color: '#c62828', padding: 12, borderRadius: 8, marginBottom: 16 }}>{error}</div>}
           {/* Revenue KPIs */}
           <p style={{ margin: '0 0 10px', fontSize: 13, color: '#888', fontWeight: 600 }}>今日概况</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 24 }}>

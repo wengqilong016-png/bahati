@@ -120,6 +120,54 @@ export async function pullTasks(): Promise<void> {
 }
 
 /**
+ * Pull today's reconciliation for the current driver from Supabase into local DB.
+ * Uses Africa/Nairobi timezone to determine "today".
+ */
+export async function pullReconciliations(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Nairobi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+
+  const { data, error } = await supabase
+    .from('daily_driver_reconciliations')
+    .select(
+      'id, driver_id, reconciliation_date, total_gross_revenue, total_dividend, total_exchange, total_expense, cash_in_hand, notes, status, created_at',
+    )
+    .eq('driver_id', user.id)
+    .eq('reconciliation_date', today);
+
+  if (error) {
+    console.error('[sync] pullReconciliations error:', error.message);
+    return;
+  }
+
+  if (data && data.length > 0) {
+    const rows = data.map((r: Record<string, unknown>) => ({
+      id: r.id as string,
+      driver_id: r.driver_id as string,
+      reconciliation_date: r.reconciliation_date as string,
+      total_gross_revenue: r.total_gross_revenue as number,
+      total_dividend: r.total_dividend as number,
+      total_exchange: r.total_exchange as number,
+      total_expense: r.total_expense as number,
+      cash_in_hand: r.cash_in_hand as number,
+      notes: r.notes as string | undefined,
+      status: r.status as 'submitted' | 'confirmed',
+      created_at: r.created_at as string,
+    }));
+    await db.reconciliations.bulkPut(rows);
+  }
+}
+
+/**
  * Process the local sync queue — push pending inserts / updates / deletes
  * to Supabase.
  *
@@ -253,6 +301,7 @@ export async function startSync(): Promise<void> {
   try {
     await pullKiosks();
     await pullTasks();
+    await pullReconciliations();
     await retryPendingUploads();
     await processQueue();
   } catch (err) {

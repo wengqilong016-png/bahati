@@ -20,6 +20,7 @@ import { validateDailyTaskScore, validateScoreResetRequest } from './validation'
 // ---- Daily Task (Phase 1: public.tasks) ----
 
 export interface SaveDailyTaskInput {
+  id?: string;           // Pre-generated ID (keeps storage path consistent with record)
   kioskId: string;
   currentScore: number;
   lastRecordedScore: number;
@@ -41,7 +42,7 @@ export async function saveDailyTask(input: SaveDailyTaskInput): Promise<void> {
     throw new Error('该机台今日任务已结算，不可修改');
   }
 
-  const id = existingTask?.id ?? crypto.randomUUID();
+  const id = input.id ?? existingTask?.id ?? crypto.randomUUID();
   const now = new Date().toISOString();
 
   await db.transaction('rw', [db.tasks, db.sync_queue, db.kiosks], async () => {
@@ -131,6 +132,7 @@ export async function saveScoreResetRequest(input: SaveScoreResetInput): Promise
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface SaveOnboardingInput {
+  id?: string;           // Pre-generated ID (keeps storage path consistent with record)
   kioskId: string;
   onboardingType: OnboardingType;
   photoUrls: string[];
@@ -145,7 +147,7 @@ export async function saveOnboarding(input: SaveOnboardingInput): Promise<void> 
     throw new Error('At least one photo is required for onboarding.');
   }
 
-  const id = crypto.randomUUID();
+  const id = input.id ?? crypto.randomUUID();
   const now = new Date().toISOString();
 
   await db.transaction('rw', [db.kiosk_onboarding_records, db.sync_queue], async () => {

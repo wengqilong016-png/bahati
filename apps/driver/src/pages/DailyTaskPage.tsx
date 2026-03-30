@@ -19,7 +19,7 @@ export function DailyTaskPage() {
   const existingTask = useLiveQuery(
     () => {
       if (!kioskId) return undefined;
-      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date());
+      const today = new Date().toISOString().slice(0, 10);
       return db.tasks.filter(t => t.kiosk_id === kioskId && t.task_date === today).first();
     },
     [kioskId],
@@ -49,6 +49,7 @@ export function DailyTaskPage() {
 
     try {
       await saveDailyTask({
+        id: taskId,
         kioskId: kiosk.id,
         currentScore: score,
         lastRecordedScore: kiosk.last_recorded_score,

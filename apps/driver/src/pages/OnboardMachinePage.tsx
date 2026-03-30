@@ -46,6 +46,7 @@ export function OnboardKioskPage() {
 
     try {
       await saveOnboarding({
+        id: onboardingIdRef.current,
         kioskId,
         onboardingType,
         photoUrls: photos,
