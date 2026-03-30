@@ -90,3 +90,21 @@ export interface SyncQueueItem {
   last_error: string | null;
   created_at: string;
 }
+
+/**
+ * Local representation of a daily driver reconciliation
+ * (Phase 2: public.daily_driver_reconciliations).
+ */
+export interface LocalReconciliation {
+  id: string;
+  driver_id: string;
+  reconciliation_date: string;
+  total_gross_revenue: number;
+  total_dividend: number;
+  total_exchange: number;
+  total_expense: number;
+  cash_in_hand: number;
+  notes?: string;
+  status: 'submitted' | 'confirmed';
+  created_at: string;
+}

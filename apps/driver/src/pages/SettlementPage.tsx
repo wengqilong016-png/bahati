@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db';
 import { settleTask } from '../lib/settlement';
 import { pullTasks } from '../lib/sync';
@@ -234,6 +235,7 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
 
 export function SettlementPage() {
   const today = todayNairobi();
+  const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
   const [syncing, setSyncing] = useState(false);
 
@@ -250,6 +252,7 @@ export function SettlementPage() {
 
   const pendingTasks = (tasks ?? []).filter(t => t.settlement_status !== 'settled');
   const settledTasks = (tasks ?? []).filter(t => t.settlement_status === 'settled');
+  const allTasks = tasks ?? [];
 
   const handleRefresh = async () => {
     setSyncing(true);
@@ -290,6 +293,20 @@ export function SettlementPage() {
       ) : (
         <div style={{ background: '#f5f5f5', borderRadius: 8, padding: 16, textAlign: 'center', color: '#888', marginBottom: 16 }}>
           <p style={{ margin: 0, fontSize: 14 }}>今日暂无待结算任务</p>
+        </div>
+      )}
+
+      {/* All tasks settled — prompt to go to daily reconciliation */}
+      {tasks !== undefined && allTasks.length > 0 && pendingTasks.length === 0 && (
+        <div style={{ background: '#e6f4ea', border: '1px solid #a5d6a7', borderRadius: 8, padding: 16, marginBottom: 16, textAlign: 'center' }}>
+          <p style={{ margin: '0 0 10px', fontSize: 14, color: '#1e7e34', fontWeight: 600 }}>✅ 所有任务已结算！</p>
+          <button
+            type="button"
+            onClick={() => navigate('/reconciliation')}
+            style={{ background: '#0066CC', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+          >
+            📋 前往日结
+          </button>
         </div>
       )}
 
