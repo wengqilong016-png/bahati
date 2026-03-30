@@ -17,7 +17,7 @@ interface MerchantLedgerEntry {
 interface KioskOption {
   id: string;
   serial_number: string;
-  merchants: { name: string } | null;
+  merchants: { name: string } | { name: string }[] | null;
 }
 
 export function MerchantLedgerPage() {
@@ -101,9 +101,12 @@ export function MerchantLedgerPage() {
             style={{ padding: '7px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14 }}
           >
             <option value="">All Kiosks</option>
-            {kiosks.map(k => (
-              <option key={k.id} value={k.id}>{k.serial_number} – {k.merchants?.name ?? '—'}</option>
-            ))}
+            {kiosks.map(k => {
+              const merchant = Array.isArray(k.merchants) ? k.merchants[0] : k.merchants;
+              return (
+                <option key={k.id} value={k.id}>{k.serial_number} – {merchant?.name ?? '—'}</option>
+              );
+            })}
           </select>
         </div>
         <div style={{ alignSelf: 'flex-end' }}>
