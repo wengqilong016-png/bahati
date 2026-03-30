@@ -84,9 +84,16 @@ export function DashboardPage() {
           .select('gross_revenue, exchange_amount, expense_amount, dividend_method, dividend_amount')
           .eq('task_date', today),
         // Merchant totals
+        // TODO [未指定 / unspecified]: merchants.retained_balance & debt_balance are
+        // column-level REVOKED for authenticated role (Phase 2). A Boss-only
+        // SECURITY DEFINER read RPC is needed. Using merchant_balance_snapshots
+        // as fallback for now.
+        // We fetch only the most recent snapshot date to keep the query bounded.
         supabase
-          .from('merchants')
-          .select('debt_balance, retained_balance'),
+          .from('merchant_balance_snapshots')
+          .select('merchant_id, retained_balance, debt_balance, snapshot_date')
+          .order('snapshot_date', { ascending: false })
+          .limit(500),
         // All active drivers
         supabase
           .from('drivers')
@@ -127,13 +134,23 @@ export function DashboardPage() {
         }
       }
 
-      // Merchant aggregates
-      const merchants = merchantsRes.data ?? [];
+      // Merchant aggregates (from snapshots — deduplicate to latest per merchant)
       let merchantTotalDebt = 0;
       let merchantTotalRetained = 0;
-      for (const m of merchants) {
-        merchantTotalDebt += Number(m.debt_balance) || 0;
-        merchantTotalRetained += Number(m.retained_balance) || 0;
+      if (merchantsRes.error) {
+        console.error('[dashboard] merchant_balance_snapshots error:', merchantsRes.error.message);
+      } else {
+        const snapshots = merchantsRes.data ?? [];
+        const latestByMerchant = new Map<string, { retained_balance: number; debt_balance: number }>();
+        for (const s of snapshots as { merchant_id: string; retained_balance: number; debt_balance: number }[]) {
+          if (!latestByMerchant.has(s.merchant_id)) {
+            latestByMerchant.set(s.merchant_id, s);
+          }
+        }
+        for (const m of latestByMerchant.values()) {
+          merchantTotalDebt += Number(m.debt_balance) || 0;
+          merchantTotalRetained += Number(m.retained_balance) || 0;
+        }
       }
 
       // Unsettled drivers = active drivers without a submitted/confirmed reconciliation today
@@ -221,7 +238,7 @@ export function DashboardPage() {
               {[
                 { label: '司机管理', to: '/drivers' },
                 { label: '商家管理', to: '/merchants' },
-                { label: '机器管理', to: '/machines' },
+                { label: '机器管理', to: '/kiosks' },
                 { label: '审批中心', to: '/approvals' },
                 { label: '报表中心', to: '/reports' },
                 { label: '地图概览', to: '/map' },

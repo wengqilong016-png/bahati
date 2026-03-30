@@ -5,19 +5,22 @@
 //   1. Validates input
 //   2. Writes to the Dexie domain table
 //   3. Enqueues a sync_queue item
-//   4. Updates related local state (e.g. machine score)
+//   4. Updates related local state (e.g. kiosk score)
 //
 // All writes are local — sync happens later via processQueue().
+//
+// Authoritative tables: kiosks, tasks, score_reset_requests,
+//   kiosk_onboarding_records  (Phase 1 schema)
 // ============================================================
 
 import { db } from './db';
 import type { OnboardingType } from './types';
 import { validateDailyTaskScore, validateScoreResetRequest } from './validation';
 
-// ---- Daily Task ----
+// ---- Daily Task (Phase 1: public.tasks) ----
 
 export interface SaveDailyTaskInput {
-  machineId: string;
+  kioskId: string;
   currentScore: number;
   lastRecordedScore: number;
   photoUrls: string[];
@@ -32,10 +35,10 @@ export async function saveDailyTask(input: SaveDailyTaskInput): Promise<void> {
   const now = new Date().toISOString();
   const taskDate = now.slice(0, 10);
 
-  await db.transaction('rw', [db.daily_tasks, db.sync_queue, db.machines], async () => {
-    await db.daily_tasks.add({
+  await db.transaction('rw', [db.tasks, db.sync_queue, db.kiosks], async () => {
+    await db.tasks.add({
       id,
-      machine_id: input.machineId,
+      kiosk_id: input.kioskId,
       task_date: taskDate,
       current_score: input.currentScore,
       photo_urls: input.photoUrls,
@@ -45,12 +48,12 @@ export async function saveDailyTask(input: SaveDailyTaskInput): Promise<void> {
     });
 
     await db.sync_queue.add({
-      table_name: 'daily_tasks',
+      table_name: 'tasks',
       record_id: id,
       operation: 'insert',
       payload: JSON.stringify({
         id,
-        machine_id: input.machineId,
+        kiosk_id: input.kioskId,
         task_date: taskDate,
         current_score: input.currentScore,
         photo_urls: input.photoUrls,
@@ -61,8 +64,8 @@ export async function saveDailyTask(input: SaveDailyTaskInput): Promise<void> {
       created_at: now,
     });
 
-    // Update local machine score so subsequent tasks see the new baseline
-    await db.machines.update(input.machineId, {
+    // Update local kiosk score so subsequent tasks see the new baseline
+    await db.kiosks.update(input.kioskId, {
       last_recorded_score: input.currentScore,
     });
   });
@@ -71,7 +74,7 @@ export async function saveDailyTask(input: SaveDailyTaskInput): Promise<void> {
 // ---- Score Reset Request ----
 
 export interface SaveScoreResetInput {
-  machineId: string;
+  kioskId: string;
   currentScore: number;
   requestedNewScore: number;
   reason: string;
@@ -87,7 +90,7 @@ export async function saveScoreResetRequest(input: SaveScoreResetInput): Promise
   await db.transaction('rw', [db.score_reset_requests, db.sync_queue], async () => {
     await db.score_reset_requests.add({
       id,
-      machine_id: input.machineId,
+      kiosk_id: input.kioskId,
       current_score: input.currentScore,
       requested_new_score: input.requestedNewScore,
       reason: input.reason,
@@ -101,7 +104,7 @@ export async function saveScoreResetRequest(input: SaveScoreResetInput): Promise
       operation: 'insert',
       payload: JSON.stringify({
         id,
-        machine_id: input.machineId,
+        kiosk_id: input.kioskId,
         current_score: input.currentScore,
         requested_new_score: input.requestedNewScore,
         reason: input.reason,
@@ -113,16 +116,22 @@ export async function saveScoreResetRequest(input: SaveScoreResetInput): Promise
   });
 }
 
-// ---- Machine Onboarding ----
+// ---- Kiosk Onboarding (Phase 1: public.kiosk_onboarding_records) ----
+
+// Phase 1 schema enforces kiosk_id as UUID FK to kiosks(id).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface SaveOnboardingInput {
-  machineId: string;
+  kioskId: string;
   onboardingType: OnboardingType;
   photoUrls: string[];
   notes: string;
 }
 
 export async function saveOnboarding(input: SaveOnboardingInput): Promise<void> {
+  if (!UUID_RE.test(input.kioskId)) {
+    throw new Error('Invalid kiosk ID. Please select a kiosk from the list.');
+  }
   if (input.onboardingType === 'onboarding' && input.photoUrls.length === 0) {
     throw new Error('At least one photo is required for onboarding.');
   }
@@ -130,10 +139,10 @@ export async function saveOnboarding(input: SaveOnboardingInput): Promise<void> 
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  await db.transaction('rw', [db.machine_onboardings, db.sync_queue], async () => {
-    await db.machine_onboardings.add({
+  await db.transaction('rw', [db.kiosk_onboarding_records, db.sync_queue], async () => {
+    await db.kiosk_onboarding_records.add({
       id,
-      machine_id: input.machineId,
+      kiosk_id: input.kioskId,
       onboarding_type: input.onboardingType,
       photo_urls: input.photoUrls,
       notes: input.notes,
@@ -142,12 +151,12 @@ export async function saveOnboarding(input: SaveOnboardingInput): Promise<void> 
     });
 
     await db.sync_queue.add({
-      table_name: 'machine_onboardings',
+      table_name: 'kiosk_onboarding_records',
       record_id: id,
       operation: 'insert',
       payload: JSON.stringify({
         id,
-        machine_id: input.machineId,
+        kiosk_id: input.kioskId,
         onboarding_type: input.onboardingType,
         photo_urls: input.photoUrls,
         notes: input.notes,

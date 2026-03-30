@@ -7,10 +7,10 @@ import { validateScoreResetRequest } from '../lib/validation';
 import { saveScoreResetRequest } from '../lib/actions';
 
 export function ScoreResetPage() {
-  const { machineId } = useParams<{ machineId: string }>();
+  const { kioskId } = useParams<{ kioskId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const machine = useLiveQuery(() => db.machines.get(machineId ?? ''), [machineId]);
+  const kiosk = useLiveQuery(() => db.kiosks.get(kioskId ?? ''), [kioskId]);
 
   const [newScore, setNewScore] = useState('0');
   const [reason, setReason] = useState('');
@@ -19,25 +19,25 @@ export function ScoreResetPage() {
   const [error, setError] = useState<string | null>(null);
 
   const parsedNewScore = parseInt(newScore, 10);
-  const scoreError = newScore !== '' && machine
-    ? validateScoreResetRequest(parsedNewScore, machine.last_recorded_score)
+  const scoreError = newScore !== '' && kiosk
+    ? validateScoreResetRequest(parsedNewScore, kiosk.last_recorded_score)
     : null;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user || !machine) return;
+    if (!user || !kiosk) return;
     setError(null);
     setSaving(true);
 
     try {
       await saveScoreResetRequest({
-        machineId: machine.id,
-        currentScore: machine.last_recorded_score,
+        kioskId: kiosk.id,
+        currentScore: kiosk.last_recorded_score,
         requestedNewScore: parsedNewScore,
         reason,
       });
       setSaved(true);
-      setTimeout(() => navigate('/machines'), 1200);
+      setTimeout(() => navigate('/kiosks'), 1200);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
@@ -45,7 +45,7 @@ export function ScoreResetPage() {
     }
   };
 
-  if (!machine) return <div style={{ padding: 16, color: '#666' }}>Loading machine...</div>;
+  if (!kiosk) return <div style={{ padding: 16, color: '#666' }}>Loading kiosk...</div>;
 
   return (
     <div style={{ padding: '16px 16px 80px' }}>
@@ -55,13 +55,13 @@ export function ScoreResetPage() {
 
       <h2 style={{ margin: '0 0 4px', color: '#0066CC' }}>Request Score Reset</h2>
       <p style={{ margin: '0 0 20px', color: '#666', fontSize: 14 }}>
-        {machine.merchant_name} · {machine.location_name}
+        {kiosk.merchant_name} · {kiosk.location_name}
       </p>
 
       <div style={{ background: '#fff3e0', borderRadius: 8, padding: 12, marginBottom: 20 }}>
         <p style={{ margin: 0, fontSize: 13, color: '#e65100' }}>Current Score</p>
         <p style={{ margin: '4px 0 0', fontSize: 28, fontWeight: 700, color: '#e65100' }}>
-          {machine.last_recorded_score}
+          {kiosk.last_recorded_score}
         </p>
       </div>
 
@@ -77,7 +77,7 @@ export function ScoreResetPage() {
             onChange={e => setNewScore(e.target.value)}
             required
             min={0}
-            placeholder={`Must be < ${machine.last_recorded_score}`}
+            placeholder={`Must be < ${kiosk.last_recorded_score}`}
             style={{
               width: '100%', padding: '10px 12px',
               border: `1px solid ${scoreError ? '#c62828' : '#ddd'}`,

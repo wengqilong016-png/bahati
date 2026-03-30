@@ -3,10 +3,10 @@ import { useAuth } from './hooks/useAuth';
 import { NavBar } from './components/NavBar';
 import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
-import { MachineListPage } from './pages/MachineListPage';
+import { KioskListPage } from './pages/MachineListPage';
 import { DailyTaskPage } from './pages/DailyTaskPage';
 import { ScoreResetPage } from './pages/ScoreResetPage';
-import { OnboardMachinePage } from './pages/OnboardMachinePage';
+import { OnboardKioskPage } from './pages/OnboardMachinePage';
 import { SummaryPage } from './pages/SummaryPage';
 import { PendingSyncPage } from './pages/PendingSyncPage';
 
@@ -45,15 +45,15 @@ export default function App() {
           }
         />
         <Route
-          path="/machines"
+          path="/kiosks"
           element={
             <ProtectedLayout>
-              <MachineListPage />
+              <KioskListPage />
             </ProtectedLayout>
           }
         />
         <Route
-          path="/machines/:machineId/task"
+          path="/kiosks/:kioskId/task"
           element={
             <ProtectedLayout>
               <DailyTaskPage />
@@ -61,7 +61,7 @@ export default function App() {
           }
         />
         <Route
-          path="/machines/:machineId/score-reset"
+          path="/kiosks/:kioskId/score-reset"
           element={
             <ProtectedLayout>
               <ScoreResetPage />
@@ -72,7 +72,7 @@ export default function App() {
           path="/onboard"
           element={
             <ProtectedLayout>
-              <OnboardMachinePage />
+              <OnboardKioskPage />
             </ProtectedLayout>
           }
         />

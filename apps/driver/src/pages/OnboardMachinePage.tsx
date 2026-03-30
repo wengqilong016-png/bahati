@@ -1,21 +1,24 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { PhotoCapture } from '../components/PhotoCapture';
 import { useAuth } from '../hooks/useAuth';
+import { db } from '../lib/db';
 import type { OnboardingType } from '../lib/types';
 import { ONBOARDING_TYPES } from '../lib/types';
 import { saveOnboarding } from '../lib/actions';
 
-export function OnboardMachinePage() {
+export function OnboardKioskPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const kiosks = useLiveQuery(() => db.kiosks.toArray(), []);
 
   const initialType: OnboardingType =
     searchParams.get('type') === 'recertification' ? 'recertification' : 'onboarding';
 
   const [onboardingType, setOnboardingType] = useState<OnboardingType>(initialType);
-  const [machineId, setMachineId] = useState('');
+  const [kioskId, setKioskId] = useState('');
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -38,7 +41,7 @@ export function OnboardMachinePage() {
 
     try {
       await saveOnboarding({
-        machineId,
+        kioskId,
         onboardingType,
         photoUrls: photos,
         notes,
@@ -93,15 +96,26 @@ export function OnboardMachinePage() {
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-            Machine ID / Serial Number *
+            Select Kiosk *
           </label>
-          <input
-            value={machineId}
-            onChange={e => setMachineId(e.target.value)}
+          <select
+            value={kioskId}
+            onChange={e => setKioskId(e.target.value)}
             required
-            placeholder="Enter machine UUID or serial number"
-            style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
-          />
+            style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box', background: '#fff' }}
+          >
+            <option value="">— Select a kiosk —</option>
+            {kiosks?.map(k => (
+              <option key={k.id} value={k.id}>
+                {k.serial_number} — {k.merchant_name} ({k.location_name})
+              </option>
+            ))}
+          </select>
+          {kiosks && kiosks.length === 0 && (
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#e65100' }}>
+              No kiosks found. Please sync first to load your assigned kiosks.
+            </p>
+          )}
         </div>
 
         <div style={{ marginBottom: 16 }}>

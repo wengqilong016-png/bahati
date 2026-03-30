@@ -4,43 +4,43 @@ import { DataTable, type Column } from '../components/DataTable';
 
 interface MerchantLedgerEntry {
   id: string;
-  machine_id: string;
-  entry_type: string;
+  merchant_id: string;
+  kiosk_id: string | null;
+  txn_type: string;
   amount: number;
-  balance_after: number;
+  retained_balance_after: number;
+  debt_balance_after: number;
   description: string | null;
-  snapshot_machine_serial: string;
-  snapshot_merchant_name: string;
   created_at: string;
 }
 
-interface Machine {
+interface KioskOption {
   id: string;
   serial_number: string;
-  merchant_name: string;
+  merchants: { name: string } | { name: string }[] | null;
 }
 
 export function MerchantLedgerPage() {
   const [entries, setEntries] = useState<MerchantLedgerEntry[] | null>(null);
-  const [machines, setMachines] = useState<Machine[]>([]);
+  const [kiosks, setKiosks] = useState<KioskOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filterMachine, setFilterMachine] = useState('');
+  const [filterKiosk, setFilterKiosk] = useState('');
 
   useEffect(() => {
-    supabase.from('machines').select('id, serial_number, merchant_name').then(({ data }) => {
-      if (data) setMachines(data as Machine[]);
+    supabase.from('kiosks').select('id, serial_number, merchants(name)').then(({ data }) => {
+      if (data) setKiosks(data as KioskOption[]);
     });
   }, []);
 
   const fetchEntries = async () => {
     setLoading(true);
     let query = supabase
-      .from('merchant_ledger_entries')
+      .from('merchant_ledger')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (filterMachine) query = query.eq('machine_id', filterMachine);
+    if (filterKiosk) query = query.eq('kiosk_id', filterKiosk);
 
     const { data, error: err } = await query;
     if (err) setError(err.message);
@@ -48,7 +48,7 @@ export function MerchantLedgerPage() {
     setLoading(false);
   };
 
-  useEffect(() => { void fetchEntries(); }, [filterMachine]);
+  useEffect(() => { void fetchEntries(); }, [filterKiosk]);
 
   const columns: Column<Record<string, unknown>>[] = [
     {
@@ -57,9 +57,7 @@ export function MerchantLedgerPage() {
       render: row => new Date(String(row.created_at)).toLocaleDateString(),
       width: '100px',
     },
-    { key: 'snapshot_merchant_name', header: 'Merchant' },
-    { key: 'snapshot_machine_serial', header: 'Serial', width: '90px' },
-    { key: 'entry_type', header: 'Type', width: '110px' },
+    { key: 'txn_type', header: 'Type', width: '140px' },
     {
       key: 'amount',
       header: 'Amount',
@@ -73,9 +71,14 @@ export function MerchantLedgerPage() {
       },
     },
     {
-      key: 'balance_after',
-      header: 'Balance After',
-      render: row => `IDR ${Number(row.balance_after).toLocaleString()}`,
+      key: 'retained_balance_after',
+      header: 'Retained After',
+      render: row => `IDR ${Number(row.retained_balance_after).toLocaleString()}`,
+    },
+    {
+      key: 'debt_balance_after',
+      header: 'Debt After',
+      render: row => `IDR ${Number(row.debt_balance_after).toLocaleString()}`,
     },
     { key: 'description', header: 'Description' },
   ];
@@ -91,21 +94,25 @@ export function MerchantLedgerPage() {
       {/* Filter */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, background: '#fff', padding: 16, borderRadius: 12, border: '1px solid #e0e0e0', flexWrap: 'wrap' }}>
         <div>
-          <label style={{ display: 'block', fontSize: 12, color: '#888', marginBottom: 4 }}>Machine</label>
+          <label style={{ display: 'block', fontSize: 12, color: '#888', marginBottom: 4 }}>Kiosk</label>
           <select
-            value={filterMachine}
-            onChange={e => setFilterMachine(e.target.value)}
+            value={filterKiosk}
+            onChange={e => setFilterKiosk(e.target.value)}
             style={{ padding: '7px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14 }}
           >
-            <option value="">All Machines</option>
-            {machines.map(m => (
-              <option key={m.id} value={m.id}>{m.serial_number} – {m.merchant_name}</option>
-            ))}
+            <option value="">All Kiosks</option>
+            {kiosks.map(k => {
+              const merchantArr = Array.isArray(k.merchants) ? k.merchants : (k.merchants ? [k.merchants] : []);
+              const merchantName = merchantArr.length > 0 ? merchantArr[0].name : '—';
+              return (
+                <option key={k.id} value={k.id}>{k.serial_number} – {merchantName}</option>
+              );
+            })}
           </select>
         </div>
         <div style={{ alignSelf: 'flex-end' }}>
           <button
-            onClick={() => setFilterMachine('')}
+            onClick={() => setFilterKiosk('')}
             style={{ padding: '7px 14px', background: '#fff', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
           >
             Clear

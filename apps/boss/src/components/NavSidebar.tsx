@@ -6,7 +6,7 @@ const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: '📊' },
   { to: '/drivers', label: '司机管理', icon: '🚗' },
   { to: '/merchants', label: '商家管理', icon: '🏷️' },
-  { to: '/machines', label: '机器管理', icon: '🏪' },
+  { to: '/kiosks', label: '机器管理', icon: '🏪' },
   { to: '/approvals', label: '审批中心', icon: '✅' },
   { to: '/reports', label: '报表中心', icon: '📈' },
   { to: '/map', label: '地图概览', icon: '🗺️' },
