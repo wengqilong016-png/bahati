@@ -7,7 +7,7 @@ export function HomePage() {
   const navigate = useNavigate();
   const isOnline = useOnlineStatus();
 
-  const [machineCount, setMachineCount] = useState(0);
+  const [kioskCount, setKioskCount] = useState(0);
   const [todayTaskCount, setTodayTaskCount] = useState(0);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [pendingResetCount, setPendingResetCount] = useState(0);
@@ -17,8 +17,8 @@ export function HomePage() {
     const today = new Date().toISOString().slice(0, 10);
 
     async function load() {
-      const machines = await db.machines.count();
-      const tasks = await db.daily_tasks.where('task_date').equals(today).count();
+      const kiosks = await db.kiosks.count();
+      const tasks = await db.tasks.where('task_date').equals(today).count();
       const syncs = await db.sync_queue.where('retry_count').below(3).count();
       const resets = await db.score_reset_requests
         .where('sync_status')
@@ -26,7 +26,7 @@ export function HomePage() {
         .count();
 
       if (!cancelled) {
-        setMachineCount(machines);
+        setKioskCount(kiosks);
         setTodayTaskCount(tasks);
         setPendingSyncCount(syncs);
         setPendingResetCount(resets);
@@ -58,8 +58,8 @@ export function HomePage() {
 
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
-        <StatCard label="My Machines" value={machineCount} color="#0066CC" onClick={() => navigate('/machines')} />
-        <StatCard label="Today Tasks" value={todayTaskCount} color="#1e7e34" onClick={() => navigate('/machines')} />
+        <StatCard label="My Kiosks" value={kioskCount} color="#0066CC" onClick={() => navigate('/kiosks')} />
+        <StatCard label="Today Tasks" value={todayTaskCount} color="#1e7e34" onClick={() => navigate('/kiosks')} />
         <StatCard label="Pending Sync" value={pendingSyncCount} color={pendingSyncCount > 0 ? '#e65100' : '#999'} onClick={() => navigate('/sync')} />
         <StatCard label="Reset Requests" value={pendingResetCount} color="#7b1fa2" />
       </div>
@@ -67,9 +67,9 @@ export function HomePage() {
       {/* Quick actions */}
       <h3 style={{ margin: '0 0 12px', fontSize: 15, color: '#333' }}>Quick Actions</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <ActionButton icon="📋" label="Record Daily Task" subtitle="Select a machine and submit" onClick={() => navigate('/machines')} />
-        <ActionButton icon="➕" label="Kiosk Onboarding" subtitle="Register a new machine" onClick={() => navigate('/onboard')} />
-        <ActionButton icon="🔄" label="Re-certification" subtitle="Re-certify an existing machine" onClick={() => navigate('/onboard?type=recertification')} />
+        <ActionButton icon="📋" label="Record Daily Task" subtitle="Select a kiosk and submit" onClick={() => navigate('/kiosks')} />
+        <ActionButton icon="➕" label="Kiosk Onboarding" subtitle="Register a new kiosk" onClick={() => navigate('/onboard')} />
+        <ActionButton icon="🔄" label="Re-certification" subtitle="Re-certify an existing kiosk" onClick={() => navigate('/onboard?type=recertification')} />
         <ActionButton icon="📊" label="My Daily Summary" subtitle="View today's work" onClick={() => navigate('/summary')} />
       </div>
     </div>

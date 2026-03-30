@@ -5,22 +5,24 @@ import { DataTable, type Column } from '../components/DataTable';
 interface DriverLedgerEntry {
   id: string;
   driver_id: string;
-  entry_type: string;
-  amount: number;
-  balance_after: number;
+  txn_type: string;
+  coin_amount: number;
+  cash_amount: number;
+  coin_balance_after: number;
+  cash_balance_after: number;
   description: string | null;
   created_at: string;
-  profiles: { full_name: string | null } | null;
+  drivers: { full_name: string | null } | null;
 }
 
-interface Profile {
+interface DriverOption {
   id: string;
   full_name: string | null;
 }
 
 export function DriverLedgerPage() {
   const [entries, setEntries] = useState<DriverLedgerEntry[] | null>(null);
-  const [drivers, setDrivers] = useState<Profile[]>([]);
+  const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterDriver, setFilterDriver] = useState('');
@@ -28,16 +30,16 @@ export function DriverLedgerPage() {
   const [filterTo, setFilterTo] = useState('');
 
   useEffect(() => {
-    supabase.from('profiles').select('id, full_name').eq('role', 'driver').then(({ data }) => {
-      if (data) setDrivers(data as Profile[]);
+    supabase.from('drivers').select('id, full_name').then(({ data }) => {
+      if (data) setDrivers(data as DriverOption[]);
     });
   }, []);
 
   const fetchEntries = async () => {
     setLoading(true);
     let query = supabase
-      .from('driver_ledger_entries')
-      .select('*, profiles(full_name)')
+      .from('driver_fund_ledger')
+      .select('*, drivers(full_name)')
       .order('created_at', { ascending: false });
 
     if (filterDriver) query = query.eq('driver_id', filterDriver);
@@ -64,15 +66,16 @@ export function DriverLedgerPage() {
       header: 'Driver',
       render: row => {
         const e = row as unknown as DriverLedgerEntry;
-        return e.profiles?.full_name ?? '—';
+        return e.drivers?.full_name ?? '—';
       },
     },
-    { key: 'entry_type', header: 'Type', width: '110px' },
+    { key: 'txn_type', header: 'Type', width: '130px' },
     {
-      key: 'amount',
-      header: 'Amount',
+      key: 'coin_amount',
+      header: 'Coin',
       render: row => {
-        const amount = Number(row.amount);
+        const amount = Number(row.coin_amount);
+        if (amount === 0) return '—';
         return (
           <span style={{ color: amount < 0 ? '#c62828' : '#1e7e34', fontWeight: 600 }}>
             {amount < 0 ? '' : '+'}IDR {amount.toLocaleString()}
@@ -81,9 +84,22 @@ export function DriverLedgerPage() {
       },
     },
     {
-      key: 'balance_after',
-      header: 'Balance After',
-      render: row => `IDR ${Number(row.balance_after).toLocaleString()}`,
+      key: 'cash_amount',
+      header: 'Cash',
+      render: row => {
+        const amount = Number(row.cash_amount);
+        if (amount === 0) return '—';
+        return (
+          <span style={{ color: amount < 0 ? '#c62828' : '#1e7e34', fontWeight: 600 }}>
+            {amount < 0 ? '' : '+'}IDR {amount.toLocaleString()}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'coin_balance_after',
+      header: 'Coin Bal.',
+      render: row => `IDR ${Number(row.coin_balance_after).toLocaleString()}`,
     },
     { key: 'description', header: 'Description' },
   ];

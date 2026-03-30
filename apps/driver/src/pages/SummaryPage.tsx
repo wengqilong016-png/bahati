@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { db } from '../lib/db';
-import type { LocalDailyTask, LocalScoreResetRequest, LocalMachineOnboarding, LocalMachine } from '../lib/types';
+import type { LocalTask, LocalScoreResetRequest, LocalKioskOnboarding, LocalKiosk } from '../lib/types';
 
 export function SummaryPage() {
   const today = new Date().toISOString().slice(0, 10);
 
-  const [tasks, setTasks] = useState<(LocalDailyTask & { machine?: LocalMachine })[]>([]);
-  const [resets, setResets] = useState<(LocalScoreResetRequest & { machine?: LocalMachine })[]>([]);
-  const [onboardings, setOnboardings] = useState<LocalMachineOnboarding[]>([]);
+  const [tasks, setTasks] = useState<(LocalTask & { kiosk?: LocalKiosk })[]>([]);
+  const [resets, setResets] = useState<(LocalScoreResetRequest & { kiosk?: LocalKiosk })[]>([]);
+  const [onboardings, setOnboardings] = useState<LocalKioskOnboarding[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,27 +15,27 @@ export function SummaryPage() {
 
     async function load() {
       // Today's tasks
-      const todayTasks = await db.daily_tasks.where('task_date').equals(today).toArray();
-      const machineIds = [...new Set([
-        ...todayTasks.map(t => t.machine_id),
+      const todayTasks = await db.tasks.where('task_date').equals(today).toArray();
+      const kioskIds = [...new Set([
+        ...todayTasks.map(t => t.kiosk_id),
       ])];
-      const machines = await db.machines.where('id').anyOf(machineIds).toArray();
-      const machineMap = new Map(machines.map(m => [m.id, m]));
+      const kiosks = await db.kiosks.where('id').anyOf(kioskIds).toArray();
+      const kioskMap = new Map(kiosks.map(k => [k.id, k]));
 
-      const enrichedTasks = todayTasks.map(t => ({ ...t, machine: machineMap.get(t.machine_id) }));
+      const enrichedTasks = todayTasks.map(t => ({ ...t, kiosk: kioskMap.get(t.kiosk_id) }));
 
       // Today's resets
       const allResets = await db.score_reset_requests.toArray();
       const todayResets = allResets.filter(r => r.created_at.startsWith(today));
-      const resetMachineIds = [...new Set(todayResets.map(r => r.machine_id))];
-      const resetMachines = resetMachineIds.length > 0
-        ? await db.machines.where('id').anyOf(resetMachineIds).toArray()
+      const resetKioskIds = [...new Set(todayResets.map(r => r.kiosk_id))];
+      const resetKiosks = resetKioskIds.length > 0
+        ? await db.kiosks.where('id').anyOf(resetKioskIds).toArray()
         : [];
-      const resetMachineMap = new Map(resetMachines.map(m => [m.id, m]));
-      const enrichedResets = todayResets.map(r => ({ ...r, machine: resetMachineMap.get(r.machine_id) }));
+      const resetKioskMap = new Map(resetKiosks.map(k => [k.id, k]));
+      const enrichedResets = todayResets.map(r => ({ ...r, kiosk: resetKioskMap.get(r.kiosk_id) }));
 
       // Today's onboardings
-      const allOnboardings = await db.machine_onboardings.toArray();
+      const allOnboardings = await db.kiosk_onboarding_records.toArray();
       const todayOnboardings = allOnboardings.filter(o => o.created_at.startsWith(today));
 
       if (!cancelled) {
@@ -72,7 +72,7 @@ export function SummaryPage() {
         {tasks.map(t => (
           <div key={t.id} style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{t.machine?.merchant_name ?? t.machine_id.slice(0, 8)}</span>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>{t.kiosk?.merchant_name ?? t.kiosk_id.slice(0, 8)}</span>
               <SyncBadge status={t.sync_status} />
             </div>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#555' }}>
@@ -89,7 +89,7 @@ export function SummaryPage() {
         {resets.map(r => (
           <div key={r.id} style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{r.machine?.merchant_name ?? r.machine_id.slice(0, 8)}</span>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>{r.kiosk?.merchant_name ?? r.kiosk_id.slice(0, 8)}</span>
               <SyncBadge status={r.sync_status} />
             </div>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#555' }}>
@@ -110,7 +110,7 @@ export function SummaryPage() {
               <SyncBadge status={o.sync_status} />
             </div>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#555' }}>
-              Machine: {o.machine_id.slice(0, 8)}… · {o.photo_urls.length} photo(s)
+              Kiosk: {o.kiosk_id.slice(0, 8)}… · {o.photo_urls.length} photo(s)
             </p>
           </div>
         ))}

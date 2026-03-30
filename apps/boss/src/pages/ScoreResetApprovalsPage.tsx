@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 
 interface ScoreResetRequest {
   id: string;
-  machine_id: string;
+  kiosk_id: string;
   driver_id: string;
   current_score: number;
   requested_new_score: number;
@@ -13,8 +13,8 @@ interface ScoreResetRequest {
   status: string;
   rejection_reason: string | null;
   created_at: string;
-  machines: { serial_number: string; merchant_name: string } | null;
-  profiles: { full_name: string | null } | null;
+  kiosks: { serial_number: string; merchants: { name: string } | null } | null;
+  drivers: { full_name: string | null } | null;
 }
 
 export function ScoreResetApprovalsPage() {
@@ -32,8 +32,8 @@ export function ScoreResetApprovalsPage() {
       .from('score_reset_requests')
       .select(`
         *,
-        machines(serial_number, merchant_name),
-        profiles(full_name)
+        kiosks(serial_number, merchants(name)),
+        drivers(full_name)
       `)
       .order('created_at', { ascending: false });
 
@@ -133,10 +133,10 @@ export function ScoreResetApprovalsPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
             <div>
               <p style={{ margin: 0, fontWeight: 700, fontSize: 16 }}>
-                {req.machines?.merchant_name ?? 'Unknown Machine'}
+                {req.kiosks?.merchants?.name ?? 'Unknown Kiosk'}
               </p>
               <p style={{ margin: '4px 0 0', color: '#666', fontSize: 13 }}>
-                Serial: {req.machines?.serial_number ?? '—'} · Driver: {req.profiles?.full_name ?? '—'}
+                Serial: {req.kiosks?.serial_number ?? '—'} · Driver: {req.drivers?.full_name ?? '—'}
               </p>
               <p style={{ margin: '4px 0 0', color: '#999', fontSize: 12 }}>
                 {new Date(req.created_at).toLocaleString()}

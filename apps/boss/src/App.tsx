@@ -5,7 +5,7 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DriversPage } from './pages/DriversPage';
 import { MerchantsPage } from './pages/MerchantsPage';
-import { MachinesPage } from './pages/MachinesPage';
+import { KiosksPage } from './pages/MachinesPage';
 import { ScoreResetApprovalsPage } from './pages/ScoreResetApprovalsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { MapOverviewPage } from './pages/MapOverviewPage';
@@ -50,7 +50,7 @@ export default function App() {
         <Route path="/dashboard" element={<ProtectedLayout><DashboardPage /></ProtectedLayout>} />
         <Route path="/drivers" element={<ProtectedLayout><DriversPage /></ProtectedLayout>} />
         <Route path="/merchants" element={<ProtectedLayout><MerchantsPage /></ProtectedLayout>} />
-        <Route path="/machines" element={<ProtectedLayout><MachinesPage /></ProtectedLayout>} />
+        <Route path="/kiosks" element={<ProtectedLayout><KiosksPage /></ProtectedLayout>} />
         <Route path="/approvals" element={<ProtectedLayout><ScoreResetApprovalsPage /></ProtectedLayout>} />
         <Route path="/reports" element={<ProtectedLayout><ReportsPage /></ProtectedLayout>} />
         <Route path="/map" element={<ProtectedLayout><MapOverviewPage /></ProtectedLayout>} />

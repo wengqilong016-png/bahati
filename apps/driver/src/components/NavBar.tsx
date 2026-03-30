@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 
 const tabs = [
   { to: '/home', label: 'Home', icon: '🏠' },
-  { to: '/machines', label: 'Machines', icon: '🏪' },
+  { to: '/kiosks', label: 'Kiosks', icon: '🏪' },
   { to: '/onboard', label: 'Onboard', icon: '➕' },
   { to: '/summary', label: 'Summary', icon: '📊' },
   { to: '/sync', label: 'Sync', icon: '🔄' },

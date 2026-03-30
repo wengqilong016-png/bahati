@@ -10,6 +10,8 @@ interface Merchant {
   address: string | null;
   is_active: boolean;
   dividend_rate: number;
+  // retained_balance and debt_balance are column-level REVOKED for
+  // authenticated role (Phase 2). Values come from snapshot aggregation.
   retained_balance: number;
   debt_balance: number;
   created_at: string;
@@ -32,20 +34,44 @@ export function MerchantsPage() {
     const fetchData = async () => {
       setLoading(true);
 
-      const [merchantsRes, kiosksRes] = await Promise.all([
+      const [merchantsRes, kiosksRes, snapshotsRes] = await Promise.all([
         supabase
           .from('merchants')
-          .select('*')
+          .select('id, name, contact_name, phone, address, is_active, dividend_rate, created_at')
           .order('name', { ascending: true }),
         supabase
           .from('kiosks')
           .select('merchant_id'),
+        // TODO [未指定]: merchants.retained_balance & debt_balance are column-level
+        // REVOKED for authenticated. Use merchant_balance_snapshots as fallback.
+        // A Boss-only SECURITY DEFINER read RPC should be created.
+        supabase
+          .from('merchant_balance_snapshots')
+          .select('merchant_id, retained_balance, debt_balance')
+          .order('snapshot_date', { ascending: false }),
       ]);
 
       if (cancelled) return;
 
-      if (merchantsRes.error) setError(merchantsRes.error.message);
-      else setMerchants(merchantsRes.data as Merchant[]);
+      // Build balance map from latest snapshot per merchant
+      const balanceMap = new Map<string, { retained_balance: number; debt_balance: number }>();
+      for (const s of (snapshotsRes.data ?? []) as { merchant_id: string; retained_balance: number; debt_balance: number }[]) {
+        if (!balanceMap.has(s.merchant_id)) {
+          balanceMap.set(s.merchant_id, s);
+        }
+      }
+
+      if (merchantsRes.error) {
+        setError(merchantsRes.error.message);
+      } else {
+        // Merge balance data into merchant rows
+        const enriched = (merchantsRes.data as Omit<Merchant, 'retained_balance' | 'debt_balance'>[]).map(m => ({
+          ...m,
+          retained_balance: balanceMap.get(m.id)?.retained_balance ?? 0,
+          debt_balance: balanceMap.get(m.id)?.debt_balance ?? 0,
+        }));
+        setMerchants(enriched);
+      }
 
       // Count kiosks per merchant
       const counts: Record<string, number> = {};

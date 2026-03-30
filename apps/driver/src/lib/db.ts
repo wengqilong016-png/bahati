@@ -1,51 +1,45 @@
 import Dexie, { type Table } from 'dexie';
 import type {
-  LocalMachine,
-  LocalDailyTask,
+  LocalKiosk,
+  LocalTask,
   LocalScoreResetRequest,
-  LocalMachineOnboarding,
+  LocalKioskOnboarding,
   SyncQueueItem,
 } from './types';
 
 export type {
-  LocalMachine,
-  LocalDailyTask,
+  LocalKiosk,
+  LocalTask,
   LocalScoreResetRequest,
-  LocalMachineOnboarding,
+  LocalKioskOnboarding,
   SyncQueueItem,
 };
 
-/** @deprecated Kept for backward compatibility — not used in Phase 1 */
-export interface LocalSettlement {
-  id: string;
-  settlement_date: string;
-  total_machines_visited: number;
-  total_collections: number;
-  notes: string;
-  status: 'draft' | 'submitted';
-  sync_status: 'pending' | 'syncing' | 'synced' | 'failed';
-  created_at: string;
-}
-
 export class SmartKioskDB extends Dexie {
-  machines!: Table<LocalMachine>;
-  daily_tasks!: Table<LocalDailyTask>;
+  kiosks!: Table<LocalKiosk>;
+  tasks!: Table<LocalTask>;
   score_reset_requests!: Table<LocalScoreResetRequest>;
-  machine_onboardings!: Table<LocalMachineOnboarding>;
-  settlements!: Table<LocalSettlement>;
+  kiosk_onboarding_records!: Table<LocalKioskOnboarding>;
   sync_queue!: Table<SyncQueueItem>;
 
   constructor() {
     super('SmartKioskDB');
 
-    // Version 2 adds onboarding_type index
-    this.version(2).stores({
-      machines: 'id, serial_number, status',
-      daily_tasks: 'id, machine_id, task_date, sync_status',
-      score_reset_requests: 'id, machine_id, sync_status',
-      machine_onboardings: 'id, machine_id, onboarding_type, sync_status',
-      settlements: 'id, settlement_date, sync_status',
+    // Version 3 — Phase 1 rename: machines→kiosks, daily_tasks→tasks,
+    // machine_onboardings→kiosk_onboarding_records.
+    // Drops the legacy Dexie stores (settlements, machines, daily_tasks, machine_onboardings).
+    this.version(3).stores({
+      // Phase 1 authoritative table names
+      kiosks: 'id, serial_number, status',
+      tasks: 'id, kiosk_id, task_date, sync_status',
+      score_reset_requests: 'id, kiosk_id, sync_status',
+      kiosk_onboarding_records: 'id, kiosk_id, onboarding_type, sync_status',
       sync_queue: '++id, table_name, record_id, operation',
+      // Explicitly delete legacy stores
+      machines: null,
+      daily_tasks: null,
+      machine_onboardings: null,
+      settlements: null,
     });
   }
 }

@@ -8,13 +8,38 @@ Offline-first kiosk management system for field operations, financial settlement
 /
 ├── supabase/
 │   ├── migrations/
-│   │   └── 20240101000000_initial_schema.sql   # Full schema, RLS, triggers, RPCs
-│   └── seed.sql                                 # Dev/test sample data
+│   │   ├── 20240101000000_initial_schema.sql               # Legacy (historical)
+│   │   ├── 20240102000000_phase1_kiosk_adjustments.sql
+│   │   ├── 20240103000000_phase1_score_validation.sql
+│   │   ├── 20240104000000_phase1_complete_schema.sql        # Phase 1 authority
+│   │   └── 20240105000000_phase2_ledger_reconciliation.sql  # Phase 2 authority
+│   └── seed.sql                                             # Dev/test sample data
 ├── apps/
 │   ├── driver/          # React + Dexie + Capacitor (offline-first Android APK)
 │   └── boss/            # React Web Dashboard (tablet/desktop)
 └── README.md
 ```
+
+## Authoritative Schema Sources
+
+| Phase | Migration File | Status |
+|-------|---------------|--------|
+| Phase 1 | `20240104000000_phase1_complete_schema.sql` | **Authority** — drivers, merchants, kiosks, tasks, kiosk\_onboarding\_records, score\_reset\_requests |
+| Phase 2 | `20240105000000_phase2_ledger_reconciliation.sql` | **Authority** — task\_settlements, driver\_fund\_ledger, merchant\_ledger, daily\_driver\_reconciliations, merchant\_balance\_snapshots |
+| Legacy | `20240101000000_initial_schema.sql` | **Historical only** — profiles/machines/daily\_tasks are dropped by Phase 1 |
+
+### Old → New Name Mapping
+
+| Legacy Name (dropped) | Phase 1/2 Name |
+|-----------------------|----------------|
+| `profiles` | `drivers` |
+| `machines` | `kiosks` |
+| `daily_tasks` | `tasks` |
+| `machine_onboardings` | `kiosk_onboarding_records` |
+| `daily_settlements` | `daily_driver_reconciliations` |
+| `driver_ledger_entries` | `driver_fund_ledger` |
+| `merchant_ledger_entries` | `merchant_ledger` |
+| `machine_id` (column) | `kiosk_id` |
 
 ## Tech Stack
 
@@ -29,7 +54,7 @@ Offline-first kiosk management system for field operations, financial settlement
 ### 1. Supabase
 
 1. Create a project at [supabase.com](https://supabase.com)
-2. Apply the migration:
+2. Apply the migrations:
    ```bash
    supabase db push
    # or via the Supabase dashboard SQL editor
@@ -92,30 +117,41 @@ npm run build
 - Works offline — all data saved to IndexedDB via Dexie
 - Background sync engine with retry logic (up to 3 retries)
 - Photo capture via Capacitor Camera or file input fallback
-- Daily task submission per machine
+- Daily task submission per kiosk
 - Score reset request workflow
-- Daily settlement (draft → submit)
+- Kiosk onboarding / re-certification
 - Sync status badge with pending count
 
 ### Boss Dashboard (Online)
 - Summary dashboard with key metrics
-- Machine management (add, edit status)
+- Kiosk management (add, edit status)
 - Score reset approval workflow (approve/reject with RPC calls)
-- Settlement confirmation
-- Driver ledger with filters
-- Merchant ledger with machine filter
+- Daily reconciliation confirmation
+- Driver fund ledger with filters
+- Merchant ledger with kiosk filter
 
-## Database Schema
+## Database Schema (Phase 1 + Phase 2)
 
-- `profiles` — extends auth.users with role (driver/boss)
-- `machines` — kiosk machines with assignment to drivers
-- `machine_onboardings` — driver onboarding submissions with photos
-- `daily_tasks` — per-machine daily score records
-- `score_reset_requests` — approval workflow for score resets
-- `daily_settlements` — driver daily financial summaries
-- `driver_ledger_entries` — driver fund account entries
-- `merchant_ledger_entries` — merchant account entries (boss-only)
-- `sync_log` — offline sync tracking
+### Phase 1 Tables
+- `drivers` — extends auth.users (full\_name, phone, license\_plate, coin\_balance, cash\_balance)
+- `merchants` — merchant entities (name, dividend\_rate, retained\_balance, debt\_balance)
+- `kiosks` — kiosk machines with merchant\_id FK and driver assignment
+- `tasks` — per-kiosk daily score records (kiosk\_id, score\_before, settlement\_status)
+- `kiosk_onboarding_records` — driver onboarding/re-certification submissions with photos
+- `score_reset_requests` — approval workflow for score resets (kiosk\_id)
+- `kiosk_assignment_history` — driver ↔ kiosk assignment history
+
+### Phase 2 Tables
+- `task_settlements` — settlement records per task (gross\_revenue, dividend, exchange, expense)
+- `driver_fund_ledger` — driver fund account entries (coin\_amount, cash\_amount)
+- `merchant_ledger` — merchant account entries (retained\_balance\_after, debt\_balance\_after)
+- `daily_driver_reconciliations` — daily driver reconciliation workflow
+- `merchant_balance_snapshots` — daily merchant balance snapshots
+
+### Column Restrictions (Phase 2)
+- `drivers.coin_balance`, `drivers.cash_balance` — UPDATE revoked for `authenticated`
+- `merchants.retained_balance`, `merchants.debt_balance` — SELECT revoked for `authenticated`
+- Boss-only read access requires SECURITY DEFINER RPC or ledger/snapshot aggregation
 
 ## Default Seed Credentials (development only)
 

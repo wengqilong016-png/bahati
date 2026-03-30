@@ -7,28 +7,44 @@ const MAX_RETRIES = 3;
 let processingQueue = false;
 
 /**
- * Pull machines assigned to the current driver from Supabase into local DB.
+ * Pull kiosks assigned to the current driver from Supabase into local DB.
+ * Joins merchants to denormalise merchant_name / merchant_contact for
+ * offline display.
  */
-export async function pullMachines(): Promise<void> {
+export async function pullKiosks(): Promise<void> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return;
 
   const { data, error } = await supabase
-    .from('machines')
+    .from('kiosks')
     .select(
-      'id, serial_number, location_name, merchant_name, merchant_contact, status, last_recorded_score',
+      'id, serial_number, merchant_id, location_name, status, last_recorded_score, merchants(name, phone)',
     )
     .eq('assigned_driver_id', user.id);
 
   if (error) {
-    console.error('[sync] pullMachines error:', error.message);
+    console.error('[sync] pullKiosks error:', error.message);
     return;
   }
 
   if (data && data.length > 0) {
-    await db.machines.bulkPut(data);
+    // Flatten the nested merchants join into denormalised local fields
+    const rows = data.map((k: Record<string, unknown>) => {
+      const merchant = k.merchants as { name: string; phone: string | null } | null;
+      return {
+        id: k.id as string,
+        serial_number: k.serial_number as string,
+        merchant_id: k.merchant_id as string,
+        location_name: k.location_name as string,
+        status: k.status as string,
+        last_recorded_score: k.last_recorded_score as number,
+        merchant_name: merchant?.name ?? '',
+        merchant_contact: merchant?.phone ?? undefined,
+      };
+    });
+    await db.kiosks.bulkPut(rows);
   }
 }
 
@@ -122,16 +138,16 @@ async function markSynced(
   recordId: string,
 ): Promise<void> {
   switch (tableName) {
-    case 'daily_tasks':
-      await db.daily_tasks.update(recordId, { sync_status: 'synced' });
+    case 'tasks':
+      await db.tasks.update(recordId, { sync_status: 'synced' });
       break;
     case 'score_reset_requests':
       await db.score_reset_requests.update(recordId, {
         sync_status: 'synced',
       });
       break;
-    case 'machine_onboardings':
-      await db.machine_onboardings.update(recordId, {
+    case 'kiosk_onboarding_records':
+      await db.kiosk_onboarding_records.update(recordId, {
         sync_status: 'synced',
       });
       break;
@@ -143,16 +159,16 @@ async function markFailed(
   recordId: string,
 ): Promise<void> {
   switch (tableName) {
-    case 'daily_tasks':
-      await db.daily_tasks.update(recordId, { sync_status: 'failed' });
+    case 'tasks':
+      await db.tasks.update(recordId, { sync_status: 'failed' });
       break;
     case 'score_reset_requests':
       await db.score_reset_requests.update(recordId, {
         sync_status: 'failed',
       });
       break;
-    case 'machine_onboardings':
-      await db.machine_onboardings.update(recordId, {
+    case 'kiosk_onboarding_records':
+      await db.kiosk_onboarding_records.update(recordId, {
         sync_status: 'failed',
       });
       break;
@@ -164,7 +180,7 @@ async function markFailed(
  */
 export async function startSync(): Promise<void> {
   try {
-    await pullMachines();
+    await pullKiosks();
     await processQueue();
   } catch (err) {
     console.error('[sync] startSync error:', err);

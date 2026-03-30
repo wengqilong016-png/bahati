@@ -6,7 +6,7 @@ import type { OnboardingType } from '../lib/types';
 import { ONBOARDING_TYPES } from '../lib/types';
 import { saveOnboarding } from '../lib/actions';
 
-export function OnboardMachinePage() {
+export function OnboardKioskPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -15,7 +15,7 @@ export function OnboardMachinePage() {
     searchParams.get('type') === 'recertification' ? 'recertification' : 'onboarding';
 
   const [onboardingType, setOnboardingType] = useState<OnboardingType>(initialType);
-  const [machineId, setMachineId] = useState('');
+  const [kioskId, setKioskId] = useState('');
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -38,7 +38,7 @@ export function OnboardMachinePage() {
 
     try {
       await saveOnboarding({
-        machineId,
+        kioskId,
         onboardingType,
         photoUrls: photos,
         notes,
@@ -93,13 +93,13 @@ export function OnboardMachinePage() {
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-            Machine ID / Serial Number *
+            Kiosk ID / Serial Number *
           </label>
           <input
-            value={machineId}
-            onChange={e => setMachineId(e.target.value)}
+            value={kioskId}
+            onChange={e => setKioskId(e.target.value)}
             required
-            placeholder="Enter machine UUID or serial number"
+            placeholder="Enter kiosk UUID or serial number"
             style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
           />
         </div>

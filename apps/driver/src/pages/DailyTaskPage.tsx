@@ -8,10 +8,10 @@ import { validateDailyTaskScore } from '../lib/validation';
 import { saveDailyTask } from '../lib/actions';
 
 export function DailyTaskPage() {
-  const { machineId } = useParams<{ machineId: string }>();
+  const { kioskId } = useParams<{ kioskId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const machine = useLiveQuery(() => db.machines.get(machineId ?? ''), [machineId]);
+  const kiosk = useLiveQuery(() => db.kiosks.get(kioskId ?? ''), [kioskId]);
 
   const [currentScore, setCurrentScore] = useState('');
   const [notes, setNotes] = useState('');
@@ -26,26 +26,26 @@ export function DailyTaskPage() {
 
   // Live validation hint
   const score = parseInt(currentScore, 10);
-  const scoreError = currentScore !== '' && machine
-    ? validateDailyTaskScore(score, machine.last_recorded_score)
+  const scoreError = currentScore !== '' && kiosk
+    ? validateDailyTaskScore(score, kiosk.last_recorded_score)
     : null;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user || !machine) return;
+    if (!user || !kiosk) return;
     setError(null);
     setSaving(true);
 
     try {
       await saveDailyTask({
-        machineId: machine.id,
+        kioskId: kiosk.id,
         currentScore: score,
-        lastRecordedScore: machine.last_recorded_score,
+        lastRecordedScore: kiosk.last_recorded_score,
         photoUrls: photos,
         notes,
       });
       setSaved(true);
-      setTimeout(() => navigate('/machines'), 1200);
+      setTimeout(() => navigate('/kiosks'), 1200);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
@@ -53,8 +53,8 @@ export function DailyTaskPage() {
     }
   };
 
-  if (!machine) {
-    return <div style={{ padding: 16, color: '#666' }}>Loading machine...</div>;
+  if (!kiosk) {
+    return <div style={{ padding: 16, color: '#666' }}>Loading kiosk...</div>;
   }
 
   return (
@@ -65,12 +65,12 @@ export function DailyTaskPage() {
 
       <h2 style={{ margin: '0 0 4px', color: '#0066CC' }}>Daily Task</h2>
       <p style={{ margin: '0 0 20px', color: '#666', fontSize: 14 }}>
-        {machine.merchant_name} · {machine.location_name}
+        {kiosk.merchant_name} · {kiosk.location_name}
       </p>
       <div style={{ background: '#f0f7ff', borderRadius: 8, padding: 12, marginBottom: 20 }}>
         <p style={{ margin: 0, fontSize: 13, color: '#555' }}>Last Recorded Score</p>
         <p style={{ margin: '4px 0 0', fontSize: 28, fontWeight: 700, color: '#0066CC' }}>
-          {machine.last_recorded_score}
+          {kiosk.last_recorded_score}
         </p>
       </div>
 
@@ -86,7 +86,7 @@ export function DailyTaskPage() {
             onChange={e => setCurrentScore(e.target.value)}
             required
             min={0}
-            placeholder={`Must be > ${machine.last_recorded_score}`}
+            placeholder={`Must be > ${kiosk.last_recorded_score}`}
             style={{
               width: '100%', padding: '10px 12px',
               border: `1px solid ${scoreError ? '#c62828' : '#ddd'}`,
@@ -135,7 +135,7 @@ export function DailyTaskPage() {
         {scoreError && (
           <button
             type="button"
-            onClick={() => navigate(`/machines/${machine.id}/score-reset`)}
+            onClick={() => navigate(`/kiosks/${kiosk.id}/score-reset`)}
             style={{ width: '100%', marginTop: 12, padding: 14, background: '#fff', color: '#e65100', border: '1px solid #e65100', borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
           >
             Submit Score Reset Request Instead
