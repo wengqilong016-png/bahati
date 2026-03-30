@@ -118,6 +118,9 @@ export async function saveScoreResetRequest(input: SaveScoreResetInput): Promise
 
 // ---- Kiosk Onboarding (Phase 1: public.kiosk_onboarding_records) ----
 
+// Phase 1 schema enforces kiosk_id as UUID FK to kiosks(id).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export interface SaveOnboardingInput {
   kioskId: string;
   onboardingType: OnboardingType;
@@ -126,6 +129,9 @@ export interface SaveOnboardingInput {
 }
 
 export async function saveOnboarding(input: SaveOnboardingInput): Promise<void> {
+  if (!UUID_RE.test(input.kioskId)) {
+    throw new Error('Invalid kiosk ID. Please select a kiosk from the list.');
+  }
   if (input.onboardingType === 'onboarding' && input.photoUrls.length === 0) {
     throw new Error('At least one photo is required for onboarding.');
   }

@@ -49,10 +49,29 @@ export function MerchantsPage() {
         supabase
           .from('merchant_balance_snapshots')
           .select('merchant_id, retained_balance, debt_balance')
-          .order('snapshot_date', { ascending: false }),
+          .order('snapshot_date', { ascending: false })
+          .limit(1000),
       ]);
 
       if (cancelled) return;
+
+      if (merchantsRes.error) {
+        setError(merchantsRes.error.message);
+        setLoading(false);
+        return;
+      }
+
+      if (snapshotsRes.error) {
+        setError(snapshotsRes.error.message);
+        setLoading(false);
+        return;
+      }
+
+      if (kiosksRes.error) {
+        setError(kiosksRes.error.message);
+        setLoading(false);
+        return;
+      }
 
       // Build balance map from latest snapshot per merchant
       const balanceMap = new Map<string, { retained_balance: number; debt_balance: number }>();
@@ -62,17 +81,13 @@ export function MerchantsPage() {
         }
       }
 
-      if (merchantsRes.error) {
-        setError(merchantsRes.error.message);
-      } else {
-        // Merge balance data into merchant rows
-        const enriched = (merchantsRes.data as Omit<Merchant, 'retained_balance' | 'debt_balance'>[]).map(m => ({
-          ...m,
-          retained_balance: balanceMap.get(m.id)?.retained_balance ?? 0,
-          debt_balance: balanceMap.get(m.id)?.debt_balance ?? 0,
-        }));
-        setMerchants(enriched);
-      }
+      // Merge balance data into merchant rows
+      const enriched = (merchantsRes.data as Omit<Merchant, 'retained_balance' | 'debt_balance'>[]).map(m => ({
+        ...m,
+        retained_balance: balanceMap.get(m.id)?.retained_balance ?? 0,
+        debt_balance: balanceMap.get(m.id)?.debt_balance ?? 0,
+      }));
+      setMerchants(enriched);
 
       // Count kiosks per merchant
       const counts: Record<string, number> = {};

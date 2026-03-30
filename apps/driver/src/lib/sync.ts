@@ -29,6 +29,17 @@ export async function pullKiosks(): Promise<void> {
     return;
   }
 
+  // Reconcile local kiosks store with the server response.
+  // Remove kiosks that are no longer assigned (e.g. after un-assignment).
+  const remoteIds = new Set((data ?? []).map((k: Record<string, unknown>) => k.id as string));
+  const localKiosks = await db.kiosks.toArray();
+  const staleIds = localKiosks
+    .map(k => k.id)
+    .filter(id => !remoteIds.has(id));
+  if (staleIds.length > 0) {
+    await db.kiosks.bulkDelete(staleIds);
+  }
+
   if (data && data.length > 0) {
     // Flatten the nested merchants join into denormalised local fields
     const rows = data.map((k: Record<string, unknown>) => {

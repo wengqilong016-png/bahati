@@ -88,10 +88,12 @@ export function DashboardPage() {
         // column-level REVOKED for authenticated role (Phase 2). A Boss-only
         // SECURITY DEFINER read RPC is needed. Using merchant_balance_snapshots
         // as fallback for now.
+        // We fetch only the most recent snapshot date to keep the query bounded.
         supabase
           .from('merchant_balance_snapshots')
-          .select('merchant_id, retained_balance, debt_balance')
-          .order('snapshot_date', { ascending: false }),
+          .select('merchant_id, retained_balance, debt_balance, snapshot_date')
+          .order('snapshot_date', { ascending: false })
+          .limit(500),
         // All active drivers
         supabase
           .from('drivers')
@@ -133,18 +135,22 @@ export function DashboardPage() {
       }
 
       // Merchant aggregates (from snapshots — deduplicate to latest per merchant)
-      const snapshots = merchantsRes.data ?? [];
-      const latestByMerchant = new Map<string, { retained_balance: number; debt_balance: number }>();
-      for (const s of snapshots as { merchant_id: string; retained_balance: number; debt_balance: number }[]) {
-        if (!latestByMerchant.has(s.merchant_id)) {
-          latestByMerchant.set(s.merchant_id, s);
-        }
-      }
       let merchantTotalDebt = 0;
       let merchantTotalRetained = 0;
-      for (const m of latestByMerchant.values()) {
-        merchantTotalDebt += Number(m.debt_balance) || 0;
-        merchantTotalRetained += Number(m.retained_balance) || 0;
+      if (merchantsRes.error) {
+        console.error('[dashboard] merchant_balance_snapshots error:', merchantsRes.error.message);
+      } else {
+        const snapshots = merchantsRes.data ?? [];
+        const latestByMerchant = new Map<string, { retained_balance: number; debt_balance: number }>();
+        for (const s of snapshots as { merchant_id: string; retained_balance: number; debt_balance: number }[]) {
+          if (!latestByMerchant.has(s.merchant_id)) {
+            latestByMerchant.set(s.merchant_id, s);
+          }
+        }
+        for (const m of latestByMerchant.values()) {
+          merchantTotalDebt += Number(m.debt_balance) || 0;
+          merchantTotalRetained += Number(m.retained_balance) || 0;
+        }
       }
 
       // Unsettled drivers = active drivers without a submitted/confirmed reconciliation today
