@@ -5,6 +5,7 @@ const tabs = [
   { to: '/kiosks', label: 'Kiosks', icon: '🏪' },
   { to: '/onboard', label: 'Onboard', icon: '➕' },
   { to: '/settlement', label: '结算', icon: '💰' },
+  { to: '/reconciliation', label: '日结', icon: '📋' },
   { to: '/sync', label: 'Sync', icon: '🔄' },
 ];
 
