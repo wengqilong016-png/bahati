@@ -14,6 +14,8 @@ DECLARE
   v_kiosk1     UUID := '10000000-0000-0000-0000-000000000001';
   v_kiosk2     UUID := '10000000-0000-0000-0000-000000000002';
   v_kiosk3     UUID := '10000000-0000-0000-0000-000000000003';
+  v_srr1       UUID := '30000000-0000-0000-0000-000000000001';
+  v_srr2       UUID := '30000000-0000-0000-0000-000000000002';
 BEGIN
 
   -- ----------------------------------------------------------------
@@ -149,21 +151,25 @@ BEGIN
 
   -- ----------------------------------------------------------------
   -- score_reset_requests
+  -- Both rows are inserted as 'pending' so that the
+  -- trg_score_reset_approval trigger fires on the pending→approved
+  -- transition and correctly advances kiosks.last_recorded_score.
+  -- Fixed UUIDs ensure idempotent re-runs.
   -- ----------------------------------------------------------------
   INSERT INTO public.score_reset_requests
-    (kiosk_id, driver_id, current_score, requested_new_score, reason, status)
+    (id, kiosk_id, driver_id, current_score, requested_new_score, reason, status)
   VALUES
-    (v_kiosk3, v_driver2_id, 320,  0, 'Machine serviced — counter reset needed', 'pending'),
-    (v_kiosk1, v_driver1_id, 1500, 0, 'End-of-month full-cycle reset',           'approved')
-  ON CONFLICT DO NOTHING;
+    (v_srr1, v_kiosk3, v_driver2_id, 320,  0, 'Machine serviced — counter reset needed', 'pending'),
+    (v_srr2, v_kiosk1, v_driver1_id, 1500, 0, 'End-of-month full-cycle reset',           'pending')
+  ON CONFLICT (id) DO NOTHING;
 
-  -- Mark the approved request as reviewed
+  -- Approve the second request (trigger fires on pending → approved,
+  -- which will set kiosk1.last_recorded_score = 0)
   UPDATE public.score_reset_requests
-  SET reviewed_by = v_boss_id,
+  SET status      = 'approved',
+      reviewed_by = v_boss_id,
       reviewed_at = now() - interval '2 hours'
-  WHERE kiosk_id  = v_kiosk1
-    AND driver_id = v_driver1_id
-    AND status    = 'approved'
-    AND reviewed_by IS NULL;
+  WHERE id     = v_srr2
+    AND status = 'pending';
 
 END $$;

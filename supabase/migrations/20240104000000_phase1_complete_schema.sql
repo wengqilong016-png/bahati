@@ -354,9 +354,7 @@ BEGIN
 
   -- Validate monotone score requirement
   IF NEW.current_score <= v_kiosk.last_recorded_score THEN
-    RAISE EXCEPTION
-      'current_score (%) must be greater than last_recorded_score (%). '
-      'If the score decreased, submit a score_reset_request instead.',
+    RAISE EXCEPTION 'current_score (%) must be greater than last_recorded_score (%). If the score decreased, submit a score_reset_request instead.',
       NEW.current_score, v_kiosk.last_recorded_score;
   END IF;
 
@@ -415,13 +413,17 @@ CREATE TRIGGER trg_score_reset_approval
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.approve_score_reset(
-  p_request_id  UUID,
-  p_reviewer_id UUID
+  p_request_id UUID
 )
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
   v_req public.score_reset_requests%ROWTYPE;
 BEGIN
+  -- Caller must be a boss
+  IF NOT public.is_boss() THEN
+    RAISE EXCEPTION 'Permission denied: only bosses can approve score reset requests';
+  END IF;
+
   SELECT * INTO v_req
   FROM public.score_reset_requests
   WHERE id = p_request_id
@@ -438,21 +440,25 @@ BEGIN
   -- Update status; kiosk score is updated by trg_score_reset_approval
   UPDATE public.score_reset_requests
   SET status      = 'approved',
-      reviewed_by = p_reviewer_id,
+      reviewed_by = auth.uid(),
       reviewed_at = now()
   WHERE id = p_request_id;
 END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.reject_score_reset(
-  p_request_id  UUID,
-  p_reviewer_id UUID,
-  p_reason      TEXT
+  p_request_id UUID,
+  p_reason     TEXT
 )
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
   v_req public.score_reset_requests%ROWTYPE;
 BEGIN
+  -- Caller must be a boss
+  IF NOT public.is_boss() THEN
+    RAISE EXCEPTION 'Permission denied: only bosses can reject score reset requests';
+  END IF;
+
   SELECT * INTO v_req
   FROM public.score_reset_requests
   WHERE id = p_request_id
@@ -468,7 +474,7 @@ BEGIN
 
   UPDATE public.score_reset_requests
   SET status           = 'rejected',
-      reviewed_by      = p_reviewer_id,
+      reviewed_by      = auth.uid(),
       reviewed_at      = now(),
       rejection_reason = p_reason
   WHERE id = p_request_id;
@@ -631,7 +637,15 @@ CREATE POLICY "tasks_select"
 
 CREATE POLICY "tasks_insert_driver"
   ON public.tasks FOR INSERT
-  WITH CHECK (driver_id = auth.uid());
+  WITH CHECK (
+    driver_id = auth.uid()
+    AND EXISTS (
+      SELECT 1
+      FROM public.kiosks k
+      WHERE k.id = kiosk_id
+        AND k.assigned_driver_id = auth.uid()
+    )
+  );
 
 CREATE POLICY "tasks_update_boss"
   ON public.tasks FOR UPDATE
@@ -647,7 +661,16 @@ CREATE POLICY "srr_select"
 
 CREATE POLICY "srr_insert_driver"
   ON public.score_reset_requests FOR INSERT
-  WITH CHECK (driver_id = auth.uid());
+  WITH CHECK (
+    driver_id = auth.uid()
+    AND EXISTS (
+      SELECT 1
+      FROM public.kiosk_assignment_history kah
+      WHERE kah.kiosk_id = kiosk_id
+        AND kah.driver_id = auth.uid()
+        AND kah.unassigned_at IS NULL
+    )
+  );
 
 CREATE POLICY "srr_update_boss"
   ON public.score_reset_requests FOR UPDATE
