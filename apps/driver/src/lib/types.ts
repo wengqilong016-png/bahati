@@ -99,12 +99,28 @@ export interface LocalReconciliation {
   id: string;
   driver_id: string;
   reconciliation_date: string;
+  // Opening balances (from previous day's confirmed reconciliation)
+  opening_coin_balance: number;
+  opening_cash_balance: number;
+  // Theoretical balances (computed server-side from ledger)
+  theoretical_coin_balance: number;
+  theoretical_cash_balance: number;
+  // Actual balances (reported by driver)
+  actual_coin_balance: number;
+  actual_cash_balance: number;
+  // Variances (actual − theoretical)
+  coin_variance: number;
+  cash_variance: number;
+  // Daily summary statistics (computed server-side)
+  total_kiosks_visited: number;
   total_gross_revenue: number;
-  total_dividend: number;
-  total_exchange: number;
-  total_expense: number;
-  cash_in_hand: number;
+  total_coins_collected: number;
+  total_coins_exchanged: number;
+  total_cash_from_exchange: number;
+  total_dividend_cash: number;
+  total_dividend_retained: number;
+  total_expense_amount: number;
   notes?: string;
-  status: 'submitted' | 'confirmed';
+  status: 'draft' | 'submitted' | 'confirmed';
   created_at: string;
 }

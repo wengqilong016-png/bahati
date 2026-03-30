@@ -138,7 +138,7 @@ export async function pullReconciliations(): Promise<void> {
   const { data, error } = await supabase
     .from('daily_driver_reconciliations')
     .select(
-      'id, driver_id, reconciliation_date, total_gross_revenue, total_dividend, total_exchange, total_expense, cash_in_hand, notes, status, created_at',
+      'id, driver_id, reconciliation_date, opening_coin_balance, opening_cash_balance, theoretical_coin_balance, theoretical_cash_balance, actual_coin_balance, actual_cash_balance, coin_variance, cash_variance, total_kiosks_visited, total_gross_revenue, total_coins_collected, total_coins_exchanged, total_cash_from_exchange, total_dividend_cash, total_dividend_retained, total_expense_amount, notes, status, created_at',
     )
     .eq('driver_id', user.id)
     .eq('reconciliation_date', today);
@@ -153,13 +153,24 @@ export async function pullReconciliations(): Promise<void> {
       id: r.id as string,
       driver_id: r.driver_id as string,
       reconciliation_date: r.reconciliation_date as string,
+      opening_coin_balance: r.opening_coin_balance as number,
+      opening_cash_balance: r.opening_cash_balance as number,
+      theoretical_coin_balance: r.theoretical_coin_balance as number,
+      theoretical_cash_balance: r.theoretical_cash_balance as number,
+      actual_coin_balance: r.actual_coin_balance as number,
+      actual_cash_balance: r.actual_cash_balance as number,
+      coin_variance: r.coin_variance as number,
+      cash_variance: r.cash_variance as number,
+      total_kiosks_visited: r.total_kiosks_visited as number,
       total_gross_revenue: r.total_gross_revenue as number,
-      total_dividend: r.total_dividend as number,
-      total_exchange: r.total_exchange as number,
-      total_expense: r.total_expense as number,
-      cash_in_hand: r.cash_in_hand as number,
+      total_coins_collected: r.total_coins_collected as number,
+      total_coins_exchanged: r.total_coins_exchanged as number,
+      total_cash_from_exchange: r.total_cash_from_exchange as number,
+      total_dividend_cash: r.total_dividend_cash as number,
+      total_dividend_retained: r.total_dividend_retained as number,
+      total_expense_amount: r.total_expense_amount as number,
       notes: r.notes as string | undefined,
-      status: r.status as 'submitted' | 'confirmed',
+      status: r.status as 'draft' | 'submitted' | 'confirmed',
       created_at: r.created_at as string,
     }));
     await db.reconciliations.bulkPut(rows);

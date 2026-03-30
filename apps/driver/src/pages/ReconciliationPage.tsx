@@ -1,10 +1,9 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, CSSProperties } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db';
 import { submitDailyReconciliation } from '../lib/reconciliation';
 import { pullReconciliations } from '../lib/sync';
-import { supabase } from '../lib/supabase';
 
 // ---- helpers ----
 
@@ -27,7 +26,8 @@ export function ReconciliationPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [cashInHand, setCashInHand] = useState('0');
+  const [actualCoinBalance, setActualCoinBalance] = useState('0');
+  const [actualCashBalance, setActualCashBalance] = useState('0');
   const [notes, setNotes] = useState('');
 
   const tasks = useLiveQuery(
@@ -84,30 +84,23 @@ export function ReconciliationPage() {
     e.preventDefault();
     setError(null);
 
-    const cashAmt = parseFloat(cashInHand) || 0;
-    if (cashAmt < 0) {
-      setError('手持现金不能为负数');
+    const coinAmt = parseFloat(actualCoinBalance) || 0;
+    const cashAmt = parseFloat(actualCashBalance) || 0;
+    if (coinAmt < 0) {
+      setError('硬币余额不能为负数');
       return;
     }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      setError('用户未登录，请重新登录');
+    if (cashAmt < 0) {
+      setError('现金余额不能为负数');
       return;
     }
 
     setSubmitting(true);
     try {
       await submitDailyReconciliation({
-        p_driver_id: user.id,
-        p_reconciliation_date: today,
-        p_total_gross_revenue: totalGrossRevenue,
-        p_total_dividend: totalDividend,
-        p_total_exchange: totalExchange,
-        p_total_expense: totalExpense,
-        p_cash_in_hand: cashAmt,
+        p_date: today,
+        p_actual_coin_balance: coinAmt,
+        p_actual_cash_balance: cashAmt,
         p_notes: notes.trim() || undefined,
       });
       setSuccess(true);
@@ -120,7 +113,7 @@ export function ReconciliationPage() {
     }
   };
 
-  const inputStyle: React.CSSProperties = {
+  const inputStyle: CSSProperties = {
     width: '100%',
     padding: '10px 12px',
     border: '1px solid #ddd',
@@ -128,12 +121,12 @@ export function ReconciliationPage() {
     fontSize: 15,
     boxSizing: 'border-box',
   };
-  const readonlyStyle: React.CSSProperties = {
+  const readonlyStyle: CSSProperties = {
     ...inputStyle,
     background: '#f5f5f5',
     color: '#555',
   };
-  const labelStyle: React.CSSProperties = {
+  const labelStyle: CSSProperties = {
     display: 'block',
     marginBottom: 6,
     fontWeight: 600,
@@ -206,10 +199,13 @@ export function ReconciliationPage() {
           <div style={{ fontSize: 14, color: '#444', lineHeight: 2 }}>
             <div>日期: {r.reconciliation_date}</div>
             <div>总营业额: ¥{r.total_gross_revenue.toLocaleString()}</div>
-            <div>总分红: ¥{r.total_dividend.toLocaleString()}</div>
-            <div>总换币: ¥{r.total_exchange.toLocaleString()}</div>
-            <div>总支出: ¥{r.total_expense.toLocaleString()}</div>
-            <div>手持现金: ¥{r.cash_in_hand.toLocaleString()}</div>
+            <div>总支出: ¥{r.total_expense_amount.toLocaleString()}</div>
+            <div>理论硬币余额: ¥{r.theoretical_coin_balance.toLocaleString()}</div>
+            <div>实际硬币余额: ¥{r.actual_coin_balance.toLocaleString()}</div>
+            <div>硬币差异: ¥{r.coin_variance.toLocaleString()}</div>
+            <div>理论现金余额: ¥{r.theoretical_cash_balance.toLocaleString()}</div>
+            <div>实际现金余额: ¥{r.actual_cash_balance.toLocaleString()}</div>
+            <div>现金差异: ¥{r.cash_variance.toLocaleString()}</div>
             {r.notes && <div>备注: {r.notes}</div>}
           </div>
         </div>
@@ -368,9 +364,9 @@ export function ReconciliationPage() {
             日结表单
           </h3>
 
-          {/* Read-only calculated fields */}
+          {/* Read-only calculated fields (reference info from settled tasks) */}
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>总营业额</label>
+            <label style={labelStyle}>今日总营业额 (参考)</label>
             <input
               readOnly
               value={`¥${totalGrossRevenue.toLocaleString()}`}
@@ -378,7 +374,7 @@ export function ReconciliationPage() {
             />
           </div>
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>总分红</label>
+            <label style={labelStyle}>今日总分红 (参考)</label>
             <input
               readOnly
               value={`¥${totalDividend.toLocaleString()}`}
@@ -386,7 +382,7 @@ export function ReconciliationPage() {
             />
           </div>
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>总换币</label>
+            <label style={labelStyle}>今日总换币 (参考)</label>
             <input
               readOnly
               value={`¥${totalExchange.toLocaleString()}`}
@@ -394,7 +390,7 @@ export function ReconciliationPage() {
             />
           </div>
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>总支出</label>
+            <label style={labelStyle}>今日总支出 (参考)</label>
             <input
               readOnly
               value={`¥${totalExpense.toLocaleString()}`}
@@ -402,15 +398,27 @@ export function ReconciliationPage() {
             />
           </div>
 
-          {/* Cash in hand */}
+          {/* Actual balances entered by driver */}
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>手持现金</label>
+            <label style={labelStyle}>实际硬币余额（盘点数）</label>
             <input
               type="number"
               min={0}
               step="0.01"
-              value={cashInHand}
-              onChange={e => setCashInHand(e.target.value)}
+              value={actualCoinBalance}
+              onChange={e => setActualCoinBalance(e.target.value)}
+              style={inputStyle}
+              required
+            />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={labelStyle}>实际现金余额（盘点数）</label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={actualCashBalance}
+              onChange={e => setActualCashBalance(e.target.value)}
               style={inputStyle}
               required
             />
