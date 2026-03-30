@@ -10,8 +10,6 @@ interface Merchant {
   address: string | null;
   is_active: boolean;
   dividend_rate: number;
-  // retained_balance and debt_balance are column-level REVOKED for
-  // authenticated role (Phase 2). Values come from snapshot aggregation.
   retained_balance: number;
   debt_balance: number;
   created_at: string;
@@ -34,7 +32,7 @@ export function MerchantsPage() {
     const fetchData = async () => {
       setLoading(true);
 
-      const [merchantsRes, kiosksRes, snapshotsRes] = await Promise.all([
+      const [merchantsRes, kiosksRes, balancesRes] = await Promise.all([
         supabase
           .from('merchants')
           .select('id, name, contact_name, phone, address, is_active, dividend_rate, created_at')
@@ -42,15 +40,7 @@ export function MerchantsPage() {
         supabase
           .from('kiosks')
           .select('merchant_id'),
-        // TODO [未指定 / unspecified]: merchants.retained_balance & debt_balance
-        // are column-level REVOKED for authenticated. Use
-        // merchant_balance_snapshots as fallback.
-        // A Boss-only SECURITY DEFINER read RPC should be created.
-        supabase
-          .from('merchant_balance_snapshots')
-          .select('merchant_id, retained_balance, debt_balance')
-          .order('snapshot_date', { ascending: false })
-          .limit(1000),
+        supabase.rpc('read_merchant_balances'),
       ]);
 
       if (cancelled) return;
@@ -61,8 +51,8 @@ export function MerchantsPage() {
         return;
       }
 
-      if (snapshotsRes.error) {
-        setError(snapshotsRes.error.message);
+      if (balancesRes.error) {
+        setError('数据加载失败');
         setLoading(false);
         return;
       }
@@ -73,12 +63,10 @@ export function MerchantsPage() {
         return;
       }
 
-      // Build balance map from latest snapshot per merchant
+      // Build balance map from RPC results (one row per merchant)
       const balanceMap = new Map<string, { retained_balance: number; debt_balance: number }>();
-      for (const s of (snapshotsRes.data ?? []) as { merchant_id: string; retained_balance: number; debt_balance: number }[]) {
-        if (!balanceMap.has(s.merchant_id)) {
-          balanceMap.set(s.merchant_id, s);
-        }
+      for (const s of (balancesRes.data ?? []) as { merchant_id: string; retained_balance: number; debt_balance: number }[]) {
+        balanceMap.set(s.merchant_id, s);
       }
 
       // Merge balance data into merchant rows
