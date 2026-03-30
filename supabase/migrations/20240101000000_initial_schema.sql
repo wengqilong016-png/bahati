@@ -161,6 +161,7 @@ BEGIN
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING '[handle_new_user] Failed to create profile for user %: % %', NEW.id, SQLERRM, SQLSTATE;
   RETURN NEW;
 END;
 $$;
