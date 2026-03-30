@@ -3,12 +3,7 @@
  * Falls back gracefully on devices without GPS or when permission denied.
  */
 
-export interface GeoPoint {
-  lat: number;
-  lng: number;
-  accuracy: number; // metres
-  captured_at: string; // ISO timestamp
-}
+import type { GeoPoint } from './types';
 
 /**
  * One-shot position capture with a configurable timeout.

@@ -58,9 +58,11 @@ export interface Kiosk {
 
 export interface KioskOnboardingRecord {
   id: string;
-  kiosk_id: string;
+  /** Nullable — backend resolves kiosk UUID from serial_number after sync */
+  kiosk_id: string | null;
   driver_id: string;
-  merchant_id: string;
+  /** Nullable — backend resolves/creates merchant after sync */
+  merchant_id: string | null;
   merchant_name: string;
   merchant_address: string;
   merchant_contact: string;

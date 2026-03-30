@@ -32,9 +32,9 @@ export default function OnboardingPage({ driverId }: OnboardingPageProps) {
       const geo = await captureLocation();
 
       await saveOnboarding({
-        kiosk_id: '', // Will be assigned by backend
+        kiosk_id: null, // Backend resolves from serial_number
         driver_id: driverId,
-        merchant_id: '',
+        merchant_id: null, // Backend resolves/creates from merchant info
         merchant_name: merchantName,
         merchant_address: merchantAddress,
         merchant_contact: merchantContact,

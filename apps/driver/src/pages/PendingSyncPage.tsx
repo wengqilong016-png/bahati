@@ -8,13 +8,16 @@ export default function PendingSyncPage() {
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    loadItems();
-  }, []);
+    let cancelled = false;
 
-  async function loadItems() {
-    const all = await db.sync_queue.orderBy('created_at').toArray();
-    setItems(all);
-  }
+    async function loadItems() {
+      const all = await db.sync_queue.orderBy('created_at').toArray();
+      if (!cancelled) setItems(all);
+    }
+
+    loadItems();
+    return () => { cancelled = true; };
+  }, []);
 
   async function handleSync() {
     setSyncing(true);
@@ -25,7 +28,9 @@ export default function PendingSyncPage() {
       console.error('Sync error:', err);
     } finally {
       setSyncing(false);
-      loadItems();
+      // Reload items after sync
+      const all = await db.sync_queue.orderBy('created_at').toArray();
+      setItems(all);
     }
   }
 

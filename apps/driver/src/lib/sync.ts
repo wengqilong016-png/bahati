@@ -4,6 +4,9 @@ import type { SyncQueueItem } from './types';
 
 const MAX_ATTEMPTS = 5;
 
+/** Module-level lock to prevent concurrent processQueue() runs. */
+let processingQueue = false;
+
 /**
  * Process the sync queue: try to push each pending item to Supabase.
  *
@@ -11,48 +14,62 @@ const MAX_ATTEMPTS = 5;
  * On success → mark local record as 'synced', remove from queue.
  * On failure → increment attempts, record error, leave in queue for retry.
  * Items exceeding MAX_ATTEMPTS are marked 'failed' and removed from queue.
+ *
+ * Uses a module-level lock to prevent concurrent runs from the background
+ * interval and manual sync triggers racing against each other.
  */
 export async function processQueue(): Promise<{
   synced: number;
   failed: number;
   remaining: number;
 }> {
-  const items = await db.sync_queue.orderBy('created_at').toArray();
-
-  let synced = 0;
-  let failed = 0;
-
-  for (const item of items) {
-    try {
-      await pushToSupabase(item);
-
-      // Mark local record as synced
-      await markSynced(item);
-
-      // Remove from queue
-      await db.sync_queue.delete(item.id!);
-      synced++;
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      const newAttempts = item.attempts + 1;
-
-      if (newAttempts >= MAX_ATTEMPTS) {
-        // Mark as permanently failed
-        await markFailed(item);
-        await db.sync_queue.delete(item.id!);
-        failed++;
-      } else {
-        // Increment attempt counter
-        await db.sync_queue.update(item.id!, {
-          attempts: newAttempts,
-          last_error: errorMsg,
-        });
-      }
-    }
+  if (processingQueue) {
+    // Another run is in progress — return current queue count without processing.
+    const remaining = await db.sync_queue.count();
+    return { synced: 0, failed: 0, remaining };
   }
 
-  const remaining = await db.sync_queue.count();
-  return { synced, failed, remaining };
+  processingQueue = true;
+  try {
+    const items = await db.sync_queue.orderBy('created_at').toArray();
+
+    let synced = 0;
+    let failed = 0;
+
+    for (const item of items) {
+      try {
+        await pushToSupabase(item);
+
+        // Mark local record as synced
+        await markSynced(item);
+
+        // Remove from queue
+        await db.sync_queue.delete(item.id!);
+        synced++;
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        const newAttempts = item.attempts + 1;
+
+        if (newAttempts >= MAX_ATTEMPTS) {
+          // Mark as permanently failed
+          await markFailed(item);
+          await db.sync_queue.delete(item.id!);
+          failed++;
+        } else {
+          // Increment attempt counter
+          await db.sync_queue.update(item.id!, {
+            attempts: newAttempts,
+            last_error: errorMsg,
+          });
+        }
+      }
+    }
+
+    const remaining = await db.sync_queue.count();
+    return { synced, failed, remaining };
+  } finally {
+    processingQueue = false;
+  }
 }
 
 /** Push a single queue item to the matching Supabase table. */

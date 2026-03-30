@@ -10,11 +10,14 @@ interface PhotoCaptureProps {
   label?: string;
 }
 
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB safety limit
+const MAX_DIMENSION = 1280; // max width/height in pixels
+
 /**
  * Minimal photo input that works on low-end Android.
  * Uses a plain <input type="file" accept="image/*" capture="environment">
- * and converts the selected image to a base64 data-URI so it can be stored
- * in Dexie / synced as a string payload.
+ * and converts the selected image to a resized, compressed base64 data-URI
+ * so it can be stored in Dexie / synced as a string payload.
  */
 export default function PhotoCapture({
   value,
@@ -24,17 +27,62 @@ export default function PhotoCapture({
 }: PhotoCaptureProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  function handleChange(e: ChangeEvent<HTMLInputElement>) {
+  async function resizeImageFile(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+
+      img.onload = () => {
+        try {
+          URL.revokeObjectURL(objectUrl);
+
+          let { width, height } = img;
+          if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+            const scale = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas context not available'));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        } catch (err) {
+          reject(err);
+        }
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Image load error'));
+      };
+
+      img.src = objectUrl;
+    });
+  }
+
+  async function handleChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        onChange(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      console.warn('Selected image exceeds 10 MB limit, skipping.');
+      return;
+    }
+
+    try {
+      const dataUri = await resizeImageFile(file);
+      onChange(dataUri);
+    } catch (err) {
+      console.error('Failed to process image file', err);
+    }
   }
 
   return (
