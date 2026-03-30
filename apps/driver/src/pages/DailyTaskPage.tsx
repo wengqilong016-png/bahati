@@ -45,7 +45,7 @@ export function DailyTaskPage() {
         notes,
       });
       setSaved(true);
-      setTimeout(() => navigate('/kiosks'), 1200);
+      setTimeout(() => navigate('/settlement'), 1200);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
@@ -74,7 +74,11 @@ export function DailyTaskPage() {
         </p>
       </div>
 
-      {saved && <div style={{ background: '#e6f4ea', color: '#1e7e34', padding: 12, borderRadius: 8, marginBottom: 16 }}>✅ Saved!</div>}
+      {saved && (
+        <div style={{ background: '#e6f4ea', color: '#1e7e34', padding: 12, borderRadius: 8, marginBottom: 16 }}>
+          ✅ 已保存！正在跳转到结算页面...
+        </div>
+      )}
       {error && <div style={{ background: '#fce8e6', color: '#c62828', padding: 12, borderRadius: 8, marginBottom: 16 }}>{error}</div>}
 
       <form onSubmit={handleSubmit}>

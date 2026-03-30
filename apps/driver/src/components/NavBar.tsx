@@ -4,7 +4,7 @@ const tabs = [
   { to: '/home', label: 'Home', icon: '🏠' },
   { to: '/kiosks', label: 'Kiosks', icon: '🏪' },
   { to: '/onboard', label: 'Onboard', icon: '➕' },
-  { to: '/summary', label: 'Summary', icon: '📊' },
+  { to: '/settlement', label: '结算', icon: '💰' },
   { to: '/sync', label: 'Sync', icon: '🔄' },
 ];
 

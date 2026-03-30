@@ -33,6 +33,7 @@ export interface LocalKiosk {
 /**
  * Local representation of a task (Phase 1: public.tasks).
  * Uses kiosk_id (not machine_id) per Phase 1 authority.
+ * Phase 2 settlement fields are optional (null for pre-Phase-2 tasks).
  */
 export interface LocalTask {
   id: string;
@@ -43,6 +44,16 @@ export interface LocalTask {
   notes: string;
   sync_status: SyncStatus;
   created_at: string;
+  // Phase 2 settlement fields
+  score_before?: number;
+  dividend_rate_snapshot?: number;
+  settlement_status?: 'pending' | 'settled';
+  gross_revenue?: number;
+  dividend_amount?: number;
+  exchange_amount?: number;
+  expense_amount?: number;
+  expense_note?: string;
+  dividend_method?: 'cash' | 'retained';
 }
 
 export interface LocalScoreResetRequest {

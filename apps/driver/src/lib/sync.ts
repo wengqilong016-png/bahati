@@ -64,6 +64,61 @@ export async function pullKiosks(): Promise<void> {
 }
 
 /**
+ * Pull today's tasks for the current driver from Supabase into local DB.
+ * Uses Africa/Nairobi timezone to determine "today".
+ */
+export async function pullTasks(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  // Determine today's date in Africa/Nairobi timezone
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Nairobi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .select(
+      'id, kiosk_id, task_date, score_before, current_score, gross_revenue, dividend_rate_snapshot, dividend_amount, dividend_method, exchange_amount, expense_amount, expense_note, settlement_status, created_at',
+    )
+    .eq('driver_id', user.id)
+    .eq('task_date', today);
+
+  if (error) {
+    console.error('[sync] pullTasks error:', error.message);
+    return;
+  }
+
+  if (data && data.length > 0) {
+    const rows = data.map((t: Record<string, unknown>) => ({
+      id: t.id as string,
+      kiosk_id: t.kiosk_id as string,
+      task_date: t.task_date as string,
+      current_score: t.current_score as number,
+      score_before: t.score_before as number | undefined,
+      gross_revenue: t.gross_revenue as number | undefined,
+      dividend_rate_snapshot: t.dividend_rate_snapshot as number | undefined,
+      dividend_amount: t.dividend_amount as number | undefined,
+      dividend_method: t.dividend_method as 'cash' | 'retained' | undefined,
+      exchange_amount: t.exchange_amount as number | undefined,
+      expense_amount: t.expense_amount as number | undefined,
+      expense_note: t.expense_note as string | undefined,
+      settlement_status: t.settlement_status as 'pending' | 'settled' | undefined,
+      photo_urls: [],
+      notes: '',
+      sync_status: 'synced' as const,
+      created_at: t.created_at as string,
+    }));
+    await db.tasks.bulkPut(rows);
+  }
+}
+
+/**
  * Process the local sync queue — push pending inserts / updates / deletes
  * to Supabase.
  *
@@ -196,6 +251,7 @@ async function markFailed(
 export async function startSync(): Promise<void> {
   try {
     await pullKiosks();
+    await pullTasks();
     await processQueue();
   } catch (err) {
     console.error('[sync] startSync error:', err);
