@@ -9,6 +9,7 @@ import { ScoreResetPage } from './pages/ScoreResetPage';
 import { OnboardKioskPage } from './pages/OnboardMachinePage';
 import { SummaryPage } from './pages/SummaryPage';
 import { PendingSyncPage } from './pages/PendingSyncPage';
+import { SettlementPage } from './pages/SettlementPage';
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -89,6 +90,14 @@ export default function App() {
           element={
             <ProtectedLayout>
               <PendingSyncPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/settlement"
+          element={
+            <ProtectedLayout>
+              <SettlementPage />
             </ProtectedLayout>
           }
         />

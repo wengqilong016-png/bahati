@@ -31,12 +31,21 @@ export async function saveDailyTask(input: SaveDailyTaskInput): Promise<void> {
   const err = validateDailyTaskScore(input.currentScore, input.lastRecordedScore);
   if (err) throw new Error(err);
 
-  const id = crypto.randomUUID();
+  // Settlement guard: prevent overwriting a settled task for the same kiosk+date.
+  const taskDate = new Date().toISOString().slice(0, 10);
+  const existingTask = await db.tasks
+    .filter(t => t.kiosk_id === input.kioskId && t.task_date === taskDate)
+    .first();
+
+  if (existingTask?.settlement_status === 'settled') {
+    throw new Error('该机台今日任务已结算，不可修改');
+  }
+
+  const id = existingTask?.id ?? crypto.randomUUID();
   const now = new Date().toISOString();
-  const taskDate = now.slice(0, 10);
 
   await db.transaction('rw', [db.tasks, db.sync_queue, db.kiosks], async () => {
-    await db.tasks.add({
+    await db.tasks.put({
       id,
       kiosk_id: input.kioskId,
       task_date: taskDate,
@@ -44,13 +53,13 @@ export async function saveDailyTask(input: SaveDailyTaskInput): Promise<void> {
       photo_urls: input.photoUrls,
       notes: input.notes,
       sync_status: 'pending',
-      created_at: now,
+      created_at: existingTask?.created_at ?? now,
     });
 
     await db.sync_queue.add({
       table_name: 'tasks',
       record_id: id,
-      operation: 'insert',
+      operation: existingTask ? 'update' : 'insert',
       payload: JSON.stringify({
         id,
         kiosk_id: input.kioskId,
