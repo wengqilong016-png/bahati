@@ -4,6 +4,7 @@ import { db } from '../lib/db';
 import { PhotoCapture } from '../components/PhotoCapture';
 import { useAuth } from '../hooks/useAuth';
 import type { OnboardingType } from '../lib/types';
+import { ONBOARDING_TYPES } from '../lib/types';
 
 export function OnboardMachinePage() {
   const navigate = useNavigate();
@@ -77,7 +78,7 @@ export function OnboardMachinePage() {
 
       {/* Type toggle */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {(['onboarding', 'recertification'] as const).map(t => (
+        {(ONBOARDING_TYPES).map(t => (
           <button
             key={t}
             type="button"

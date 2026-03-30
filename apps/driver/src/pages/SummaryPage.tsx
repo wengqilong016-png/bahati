@@ -28,7 +28,9 @@ export function SummaryPage() {
       const allResets = await db.score_reset_requests.toArray();
       const todayResets = allResets.filter(r => r.created_at.startsWith(today));
       const resetMachineIds = [...new Set(todayResets.map(r => r.machine_id))];
-      const resetMachines = await db.machines.where('id').anyOf(resetMachineIds.length > 0 ? resetMachineIds : ['']).toArray();
+      const resetMachines = resetMachineIds.length > 0
+        ? await db.machines.where('id').anyOf(resetMachineIds).toArray()
+        : [];
       const resetMachineMap = new Map(resetMachines.map(m => [m.id, m]));
       const enrichedResets = todayResets.map(r => ({ ...r, machine: resetMachineMap.get(r.machine_id) }));
 

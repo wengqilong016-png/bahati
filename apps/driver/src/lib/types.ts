@@ -6,6 +6,8 @@ export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
 
 export type OnboardingType = 'onboarding' | 'recertification';
 
+export const ONBOARDING_TYPES: readonly OnboardingType[] = ['onboarding', 'recertification'] as const;
+
 // ---- Dexie local interfaces --------------------------------
 
 export interface LocalMachine {

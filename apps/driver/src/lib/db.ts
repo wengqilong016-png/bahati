@@ -15,7 +15,7 @@ export type {
   SyncQueueItem,
 };
 
-/** Kept for backward compatibility — not used in Phase 1 */
+/** @deprecated Kept for backward compatibility — not used in Phase 1 */
 export interface LocalSettlement {
   id: string;
   settlement_date: string;
