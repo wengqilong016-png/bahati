@@ -1,10 +1,10 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { db } from '../lib/db';
 import { PhotoCapture } from '../components/PhotoCapture';
 import { useAuth } from '../hooks/useAuth';
 import type { OnboardingType } from '../lib/types';
 import { ONBOARDING_TYPES } from '../lib/types';
+import { saveOnboarding } from '../lib/actions';
 
 export function OnboardMachinePage() {
   const navigate = useNavigate();
@@ -20,6 +20,7 @@ export function OnboardMachinePage() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isRecert = onboardingType === 'recertification';
   const title = isRecert ? 'Re-certification' : 'Kiosk Onboarding';
@@ -32,40 +33,23 @@ export function OnboardMachinePage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    setError(null);
     setSaving(true);
 
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-
-    await db.machine_onboardings.add({
-      id,
-      machine_id: machineId,
-      onboarding_type: onboardingType,
-      photo_urls: photos,
-      notes,
-      sync_status: 'pending',
-      created_at: now,
-    });
-
-    await db.sync_queue.add({
-      table_name: 'machine_onboardings',
-      record_id: id,
-      operation: 'insert',
-      payload: JSON.stringify({
-        id,
-        machine_id: machineId,
-        onboarding_type: onboardingType,
-        photo_urls: photos,
+    try {
+      await saveOnboarding({
+        machineId,
+        onboardingType,
+        photoUrls: photos,
         notes,
-      }),
-      retry_count: 0,
-      last_error: null,
-      created_at: now,
-    });
-
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => navigate('/home'), 1200);
+      });
+      setSaved(true);
+      setTimeout(() => navigate('/home'), 1200);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -100,6 +84,11 @@ export function OnboardMachinePage() {
           ✅ Saved! Redirecting...
         </div>
       )}
+      {error && (
+        <div style={{ background: '#fce8e6', color: '#c62828', padding: 12, borderRadius: 8, marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: 16 }}>
@@ -130,9 +119,14 @@ export function OnboardMachinePage() {
 
         <div style={{ marginBottom: 20 }}>
           <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
-            Photos ({photos.length})
+            Photos ({photos.length}){!isRecert && ' *'}
           </label>
           <PhotoCapture onCapture={handlePhoto} />
+          {!isRecert && photos.length === 0 && (
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#e65100' }}>
+              At least one photo is required for onboarding.
+            </p>
+          )}
           {photos.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
               {photos.map((p, i) => (

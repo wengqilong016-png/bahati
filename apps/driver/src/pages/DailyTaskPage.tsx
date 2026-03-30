@@ -4,6 +4,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { PhotoCapture } from '../components/PhotoCapture';
 import { useAuth } from '../hooks/useAuth';
+import { validateDailyTaskScore } from '../lib/validation';
+import { saveDailyTask } from '../lib/actions';
 
 export function DailyTaskPage() {
   const { machineId } = useParams<{ machineId: string }>();
@@ -22,46 +24,26 @@ export function DailyTaskPage() {
     setPhotos(prev => [...prev, dataUrl]);
   };
 
+  // Live validation hint
+  const score = parseInt(currentScore, 10);
+  const scoreError = currentScore !== '' && machine
+    ? validateDailyTaskScore(score, machine.last_recorded_score)
+    : null;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user || !machine) return;
     setError(null);
     setSaving(true);
 
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-    const taskDate = now.slice(0, 10);
-    const score = parseInt(currentScore, 10);
-
     try {
-      await db.daily_tasks.add({
-        id,
-        machine_id: machine.id,
-        task_date: taskDate,
-        current_score: score,
-        photo_urls: photos,
+      await saveDailyTask({
+        machineId: machine.id,
+        currentScore: score,
+        lastRecordedScore: machine.last_recorded_score,
+        photoUrls: photos,
         notes,
-        sync_status: 'pending',
-        created_at: now,
       });
-
-      await db.sync_queue.add({
-        table_name: 'daily_tasks',
-        record_id: id,
-        operation: 'insert',
-        payload: JSON.stringify({
-          id,
-          machine_id: machine.id,
-          task_date: taskDate,
-          current_score: score,
-          photo_urls: photos,
-          notes,
-        }),
-        retry_count: 0,
-        last_error: null,
-        created_at: now,
-      });
-
       setSaved(true);
       setTimeout(() => navigate('/machines'), 1200);
     } catch (err) {
@@ -104,9 +86,18 @@ export function DailyTaskPage() {
             onChange={e => setCurrentScore(e.target.value)}
             required
             min={0}
-            placeholder="Enter current score"
-            style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 16, boxSizing: 'border-box' }}
+            placeholder={`Must be > ${machine.last_recorded_score}`}
+            style={{
+              width: '100%', padding: '10px 12px',
+              border: `1px solid ${scoreError ? '#c62828' : '#ddd'}`,
+              borderRadius: 6, fontSize: 16, boxSizing: 'border-box',
+            }}
           />
+          {scoreError && (
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#c62828' }}>
+              ⚠️ {scoreError}
+            </p>
+          )}
         </div>
 
         <div style={{ marginBottom: 16 }}>
@@ -135,11 +126,21 @@ export function DailyTaskPage() {
 
         <button
           type="submit"
-          disabled={saving}
-          style={{ width: '100%', padding: 14, background: '#0066CC', color: '#fff', border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
+          disabled={saving || !!scoreError}
+          style={{ width: '100%', padding: 14, background: (saving || scoreError) ? '#ccc' : '#0066CC', color: '#fff', border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 600, cursor: (saving || scoreError) ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
         >
           {saving ? 'Saving...' : 'Submit Task'}
         </button>
+
+        {scoreError && (
+          <button
+            type="button"
+            onClick={() => navigate(`/machines/${machine.id}/score-reset`)}
+            style={{ width: '100%', marginTop: 12, padding: 14, background: '#fff', color: '#e65100', border: '1px solid #e65100', borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
+          >
+            Submit Score Reset Request Instead
+          </button>
+        )}
       </form>
     </div>
   );
