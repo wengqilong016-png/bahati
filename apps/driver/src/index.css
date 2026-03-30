@@ -1,0 +1,5 @@
+/* Global reset – kept minimal for low-end Android performance */
+html {
+  font-size: 16px;
+  line-height: 1.5;
+}

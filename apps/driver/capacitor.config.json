@@ -1,0 +1,9 @@
+{
+  "appId": "com.smartkiosk.driver",
+  "appName": "SmartKiosk Driver",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
