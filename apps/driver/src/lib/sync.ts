@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { db } from './db';
+import { retryPendingUploads } from './storage';
 
 const MAX_RETRIES = 3;
 
@@ -252,6 +253,7 @@ export async function startSync(): Promise<void> {
   try {
     await pullKiosks();
     await pullTasks();
+    await retryPendingUploads();
     await processQueue();
   } catch (err) {
     console.error('[sync] startSync error:', err);

@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useRef, useCallback, FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
@@ -6,12 +6,25 @@ import { PhotoCapture } from '../components/PhotoCapture';
 import { useAuth } from '../hooks/useAuth';
 import { validateDailyTaskScore } from '../lib/validation';
 import { saveDailyTask } from '../lib/actions';
+import { uploadTaskPhoto } from '../lib/storage';
 
 export function DailyTaskPage() {
   const { kioskId } = useParams<{ kioskId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const kiosk = useLiveQuery(() => db.kiosks.get(kioskId ?? ''), [kioskId]);
+
+  // Stable ID for storage path — reuse existing task's ID when one already exists
+  const stableIdRef = useRef<string>(crypto.randomUUID());
+  const existingTask = useLiveQuery(
+    () => {
+      if (!kioskId) return undefined;
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date());
+      return db.tasks.filter(t => t.kiosk_id === kioskId && t.task_date === today).first();
+    },
+    [kioskId],
+  );
+  const taskId = existingTask?.id ?? stableIdRef.current;
 
   const [currentScore, setCurrentScore] = useState('');
   const [notes, setNotes] = useState('');
@@ -20,9 +33,7 @@ export function DailyTaskPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handlePhoto = (dataUrl: string) => {
-    setPhotos(prev => [...prev, dataUrl]);
-  };
+  const uploadFn = useCallback((file: File) => uploadTaskPhoto(file, taskId), [taskId]);
 
   // Live validation hint
   const score = parseInt(currentScore, 10);
@@ -116,16 +127,14 @@ export function DailyTaskPage() {
 
         <div style={{ marginBottom: 20 }}>
           <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
-            Photos ({photos.length})
+            照片 ({photos.length})
           </label>
-          <PhotoCapture onCapture={handlePhoto} />
-          {photos.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-              {photos.map((p, i) => (
-                <img key={i} src={p} alt={`photo ${i + 1}`} style={{ width: 70, height: 70, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd' }} />
-              ))}
-            </div>
-          )}
+          <PhotoCapture
+            photos={photos}
+            onPhotosChange={setPhotos}
+            uploadFn={uploadFn}
+            disabled={saving}
+          />
         </div>
 
         <button
