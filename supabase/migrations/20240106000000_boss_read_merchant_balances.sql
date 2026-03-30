@@ -2,7 +2,7 @@
 -- Boss-only RPC to read restricted merchant balance columns
 -- ============================================================
 
--- Ensure is_boss() helper has search_path set
+-- Ensure is_boss() helper has search_path set (security hardening only — logic unchanged)
 CREATE OR REPLACE FUNCTION public.is_boss()
 RETURNS boolean
 LANGUAGE sql
@@ -11,9 +11,10 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT EXISTS (
-    SELECT 1 FROM public.drivers
+    SELECT 1
+    FROM auth.users
     WHERE id = auth.uid()
-    AND role = 'boss'
+      AND raw_user_meta_data->>'role' = 'boss'
   );
 $$;
 
@@ -26,7 +27,8 @@ SET search_path = public
 AS $$
 BEGIN
   IF NOT public.is_boss() THEN
-    RAISE EXCEPTION 'Forbidden: boss only';
+    RAISE EXCEPTION 'Permission denied: boss only'
+      USING ERRCODE = '42501';
   END IF;
   RETURN QUERY
     SELECT m.id, m.name, m.retained_balance, m.debt_balance
@@ -35,5 +37,6 @@ BEGIN
 END;
 $$;
 
--- Grant execute to authenticated role
+-- Restrict to authenticated role only (revoke default PUBLIC execute, then re-grant)
+REVOKE EXECUTE ON FUNCTION public.read_merchant_balances() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.read_merchant_balances() TO authenticated;
