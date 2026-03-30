@@ -465,103 +465,41 @@ BEGIN
   v_gross_revenue   := (v_task.current_score - v_score_before) * 200;
   v_dividend_amount := ROUND(v_gross_revenue * v_merchant.dividend_rate, 2);
 
-  -- ===== DRIVER FUND LEDGER =====
+  -- ===== BALANCE PRE-VALIDATION =====
+  -- Simulate all balance changes in memory to validate before any writes.
 
-  -- 1) Coin collection: driver picks up all coins from the machine
+  -- After coin collection
   v_driver.coin_balance := v_driver.coin_balance + v_gross_revenue;
-  INSERT INTO public.driver_fund_ledger (
-    driver_id, task_id, settlement_id, txn_type,
-    coin_amount, cash_amount, coin_balance_after, cash_balance_after,
-    description, created_by
-  ) VALUES (
-    v_task.driver_id, p_task_id, NULL, 'coin_collection',
-    v_gross_revenue, 0, v_driver.coin_balance, v_driver.cash_balance,
-    format('收币: 机器 %s, 分数 %s→%s, 毛收入 %s',
-      v_kiosk.serial_number, v_score_before, v_task.current_score, v_gross_revenue),
-    auth.uid()
-  );
 
-  -- 2) Coin exchange: driver gives coins to merchant, receives cash
-  --    Validate against driver's available coin balance (not gross_revenue).
+  -- After coin exchange out
   IF p_exchange_amount > 0 THEN
     IF v_driver.coin_balance < p_exchange_amount THEN
       RAISE EXCEPTION 'Insufficient coin balance (%) for exchange amount (%)',
         v_driver.coin_balance, p_exchange_amount;
     END IF;
-
     v_driver.coin_balance := v_driver.coin_balance - p_exchange_amount;
-    INSERT INTO public.driver_fund_ledger (
-      driver_id, task_id, settlement_id, txn_type,
-      coin_amount, cash_amount, coin_balance_after, cash_balance_after,
-      description, created_by
-    ) VALUES (
-      v_task.driver_id, p_task_id, NULL, 'coin_out_exchange',
-      -p_exchange_amount, 0, v_driver.coin_balance, v_driver.cash_balance,
-      format('换币出: 商家 %s, 金额 %s', v_merchant.name, p_exchange_amount),
-      auth.uid()
-    );
-
     v_driver.cash_balance := v_driver.cash_balance + p_exchange_amount;
-    INSERT INTO public.driver_fund_ledger (
-      driver_id, task_id, settlement_id, txn_type,
-      coin_amount, cash_amount, coin_balance_after, cash_balance_after,
-      description, created_by
-    ) VALUES (
-      v_task.driver_id, p_task_id, NULL, 'cash_in_exchange',
-      0, p_exchange_amount, v_driver.coin_balance, v_driver.cash_balance,
-      format('换币收现: 商家 %s, 金额 %s', v_merchant.name, p_exchange_amount),
-      auth.uid()
-    );
   END IF;
 
-  -- 3) Cash dividend paid: driver pays merchant cash if dividend_method = 'cash'
+  -- After cash dividend paid
   IF p_dividend_method = 'cash' AND v_dividend_amount > 0 THEN
     IF v_driver.cash_balance < v_dividend_amount THEN
       RAISE EXCEPTION 'Insufficient cash balance (%) for dividend payment (%)',
         v_driver.cash_balance, v_dividend_amount;
     END IF;
-
     v_driver.cash_balance := v_driver.cash_balance - v_dividend_amount;
-    INSERT INTO public.driver_fund_ledger (
-      driver_id, task_id, settlement_id, txn_type,
-      coin_amount, cash_amount, coin_balance_after, cash_balance_after,
-      description, created_by
-    ) VALUES (
-      v_task.driver_id, p_task_id, NULL, 'cash_dividend_paid',
-      0, -v_dividend_amount, v_driver.coin_balance, v_driver.cash_balance,
-      format('支付商家 %s 现场分红 %s', v_merchant.name, v_dividend_amount),
-      auth.uid()
-    );
   END IF;
 
-  -- 4) Expense payment: driver pays out-of-pocket expense if expense_amount > 0
+  -- After expense payment
   IF p_expense_amount > 0 THEN
     IF v_driver.cash_balance < p_expense_amount THEN
       RAISE EXCEPTION 'Insufficient cash balance (%) for expense payment (%)',
         v_driver.cash_balance, p_expense_amount;
     END IF;
-
     v_driver.cash_balance := v_driver.cash_balance - p_expense_amount;
-    INSERT INTO public.driver_fund_ledger (
-      driver_id, task_id, settlement_id, txn_type,
-      coin_amount, cash_amount, coin_balance_after, cash_balance_after,
-      description, created_by
-    ) VALUES (
-      v_task.driver_id, p_task_id, NULL, 'expense_payment',
-      0, -p_expense_amount, v_driver.coin_balance, v_driver.cash_balance,
-      format('现场支出 %s: %s', p_expense_amount, COALESCE(p_expense_note, '')),
-      auth.uid()
-    );
   END IF;
 
-  -- Update driver running balances
-  UPDATE public.drivers
-  SET coin_balance = v_driver.coin_balance,
-      cash_balance = v_driver.cash_balance
-  WHERE id = v_task.driver_id;
-
-  -- ===== INSERT task_settlement =====
-  -- (inserted after driver ledger entries so we have validated all balances)
+  -- ===== INSERT task_settlement (first, to obtain settlement_id) =====
   INSERT INTO public.task_settlements (
     task_id, kiosk_id, merchant_id, driver_id, task_date,
     score_before, score_after, gross_revenue,
@@ -574,10 +512,89 @@ BEGIN
     p_exchange_amount, p_expense_amount, p_expense_note
   ) RETURNING id INTO v_settlement_id;
 
-  -- Back-fill settlement_id on driver_fund_ledger entries for this task
-  UPDATE public.driver_fund_ledger
-  SET settlement_id = v_settlement_id
-  WHERE task_id = p_task_id AND settlement_id IS NULL;
+  -- ===== DRIVER FUND LEDGER =====
+  -- Reset driver balances to pre-validation state for step-by-step ledger inserts
+  -- (re-fetch the locked row values)
+  SELECT coin_balance, cash_balance
+  INTO v_driver.coin_balance, v_driver.cash_balance
+  FROM public.drivers WHERE id = v_task.driver_id;
+
+  -- 1) Coin collection: driver picks up all coins from the machine
+  v_driver.coin_balance := v_driver.coin_balance + v_gross_revenue;
+  INSERT INTO public.driver_fund_ledger (
+    driver_id, task_id, settlement_id, txn_type,
+    coin_amount, cash_amount, coin_balance_after, cash_balance_after,
+    description, created_by
+  ) VALUES (
+    v_task.driver_id, p_task_id, v_settlement_id, 'coin_collection',
+    v_gross_revenue, 0, v_driver.coin_balance, v_driver.cash_balance,
+    format('收币: 机器 %s, 分数 %s→%s, 毛收入 %s',
+      v_kiosk.serial_number, v_score_before, v_task.current_score, v_gross_revenue),
+    auth.uid()
+  );
+
+  -- 2) Coin exchange: driver gives coins to merchant, receives cash
+  IF p_exchange_amount > 0 THEN
+    v_driver.coin_balance := v_driver.coin_balance - p_exchange_amount;
+    INSERT INTO public.driver_fund_ledger (
+      driver_id, task_id, settlement_id, txn_type,
+      coin_amount, cash_amount, coin_balance_after, cash_balance_after,
+      description, created_by
+    ) VALUES (
+      v_task.driver_id, p_task_id, v_settlement_id, 'coin_out_exchange',
+      -p_exchange_amount, 0, v_driver.coin_balance, v_driver.cash_balance,
+      format('换币出: 商家 %s, 金额 %s', v_merchant.name, p_exchange_amount),
+      auth.uid()
+    );
+
+    v_driver.cash_balance := v_driver.cash_balance + p_exchange_amount;
+    INSERT INTO public.driver_fund_ledger (
+      driver_id, task_id, settlement_id, txn_type,
+      coin_amount, cash_amount, coin_balance_after, cash_balance_after,
+      description, created_by
+    ) VALUES (
+      v_task.driver_id, p_task_id, v_settlement_id, 'cash_in_exchange',
+      0, p_exchange_amount, v_driver.coin_balance, v_driver.cash_balance,
+      format('换币收现: 商家 %s, 金额 %s', v_merchant.name, p_exchange_amount),
+      auth.uid()
+    );
+  END IF;
+
+  -- 3) Cash dividend paid: driver pays merchant cash if dividend_method = 'cash'
+  IF p_dividend_method = 'cash' AND v_dividend_amount > 0 THEN
+    v_driver.cash_balance := v_driver.cash_balance - v_dividend_amount;
+    INSERT INTO public.driver_fund_ledger (
+      driver_id, task_id, settlement_id, txn_type,
+      coin_amount, cash_amount, coin_balance_after, cash_balance_after,
+      description, created_by
+    ) VALUES (
+      v_task.driver_id, p_task_id, v_settlement_id, 'cash_dividend_paid',
+      0, -v_dividend_amount, v_driver.coin_balance, v_driver.cash_balance,
+      format('支付商家 %s 现场分红 %s', v_merchant.name, v_dividend_amount),
+      auth.uid()
+    );
+  END IF;
+
+  -- 4) Expense payment: driver pays out-of-pocket expense if expense_amount > 0
+  IF p_expense_amount > 0 THEN
+    v_driver.cash_balance := v_driver.cash_balance - p_expense_amount;
+    INSERT INTO public.driver_fund_ledger (
+      driver_id, task_id, settlement_id, txn_type,
+      coin_amount, cash_amount, coin_balance_after, cash_balance_after,
+      description, created_by
+    ) VALUES (
+      v_task.driver_id, p_task_id, v_settlement_id, 'expense_payment',
+      0, -p_expense_amount, v_driver.coin_balance, v_driver.cash_balance,
+      format('现场支出 %s: %s', p_expense_amount, COALESCE(p_expense_note, '')),
+      auth.uid()
+    );
+  END IF;
+
+  -- Update driver running balances
+  UPDATE public.drivers
+  SET coin_balance = v_driver.coin_balance,
+      cash_balance = v_driver.cash_balance
+  WHERE id = v_task.driver_id;
 
   -- ===== MERCHANT LEDGER =====
 
@@ -1099,12 +1116,10 @@ BEGIN
     COALESCE(SUM(gross_revenue), 0),
     COALESCE(SUM(exchange_amount), 0),
     COALESCE(SUM(CASE WHEN dividend_method = 'cash' THEN dividend_amount ELSE 0 END), 0),
-    COALESCE(SUM(CASE WHEN dividend_method = 'retained' THEN dividend_amount ELSE 0 END), 0),
-    COALESCE(SUM(expense_amount), 0)
+    COALESCE(SUM(CASE WHEN dividend_method = 'retained' THEN dividend_amount ELSE 0 END), 0)
   INTO
     v_total_kiosks, v_total_gross,
-    v_total_coins_exch, v_total_div_cash, v_total_div_retained,
-    v_total_expense
+    v_total_coins_exch, v_total_div_cash, v_total_div_retained
   FROM public.task_settlements
   WHERE driver_id = v_driver_id
     AND task_date = p_date;
@@ -1113,8 +1128,7 @@ BEGIN
   v_total_coins_coll := v_total_gross;
   v_total_cash_exch  := v_total_coins_exch;
 
-  -- Also sum expense_payment entries from driver_fund_ledger not tied to task_settlements
-  -- (in case expenses are recorded outside task settlements in the future)
+  -- Total expense from driver_fund_ledger (single authoritative source for all expense_payment entries)
   SELECT COALESCE(SUM(ABS(cash_amount)), 0)
   INTO v_total_expense
   FROM public.driver_fund_ledger
