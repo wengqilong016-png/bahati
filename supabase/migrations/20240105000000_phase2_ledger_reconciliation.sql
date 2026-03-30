@@ -412,8 +412,12 @@ BEGIN
     RAISE EXCEPTION 'Settlement already recorded for task: %', p_task_id;
   END IF;
 
-  -- score_before: populated by Phase 2 trigger; fallback to 0 for legacy tasks
-  v_score_before := COALESCE(v_task.score_before, 0);
+  -- score_before must be populated by the Phase 2 trigger.
+  -- Reject legacy tasks that lack score_before to prevent incorrect revenue calculation.
+  IF v_task.score_before IS NULL THEN
+    RAISE EXCEPTION 'Task % has no score_before. Only tasks created after Phase 2 migration can be settled.', p_task_id;
+  END IF;
+  v_score_before := v_task.score_before;
 
   -- Fetch related entities (lock for balance updates)
   SELECT * INTO v_kiosk    FROM public.kiosks    WHERE id = v_task.kiosk_id;
@@ -863,29 +867,34 @@ BEGIN
     v_opening_cash := 0;
   END IF;
 
-  -- Aggregate from task_settlements for the day
+  -- Aggregate from task_settlements for the day.
+  -- Note: coins_collected = gross_revenue (driver collects all coins worth gross_revenue).
+  -- Note: coins_exchanged = cash_from_exchange = exchange_amount (coins and cash swap at par).
   SELECT
     COALESCE(COUNT(*), 0),
     COALESCE(SUM(gross_revenue), 0),
-    COALESCE(SUM(gross_revenue), 0),
-    COALESCE(SUM(exchange_amount), 0),
     COALESCE(SUM(exchange_amount), 0),
     COALESCE(SUM(CASE WHEN dividend_method = 'cash' THEN dividend_amount ELSE 0 END), 0),
     COALESCE(SUM(CASE WHEN dividend_method = 'retained' THEN dividend_amount ELSE 0 END), 0)
   INTO
     v_total_kiosks, v_total_gross,
-    v_total_coins_coll, v_total_coins_exch,
-    v_total_cash_exch, v_total_div_cash, v_total_div_retained
+    v_total_coins_exch, v_total_div_cash, v_total_div_retained
   FROM public.task_settlements
   WHERE driver_id = v_driver_id
     AND task_date = p_date;
 
-  -- Theoretical balance from ledger (accounts for ALL transactions, not just tasks)
+  -- coins_collected equals gross_revenue; cash_from_exchange equals exchange_amount (at par)
+  v_total_coins_coll := v_total_gross;
+  v_total_cash_exch  := v_total_coins_exch;
+
+  -- Theoretical balance from ledger (accounts for ALL transactions, not just tasks).
+  -- Use range comparison instead of created_at::date for index efficiency.
   SELECT COALESCE(SUM(coin_amount), 0), COALESCE(SUM(cash_amount), 0)
   INTO v_day_coin_delta, v_day_cash_delta
   FROM public.driver_fund_ledger
   WHERE driver_id = v_driver_id
-    AND created_at::date = p_date;
+    AND created_at >= p_date::timestamptz
+    AND created_at <  (p_date + INTERVAL '1 day')::timestamptz;
 
   v_theoretical_coin := v_opening_coin + v_day_coin_delta;
   v_theoretical_cash := v_opening_cash + v_day_cash_delta;
@@ -1021,7 +1030,9 @@ BEGIN
     description, created_by
   ) VALUES (
     p_merchant_id, 'manual_adjustment',
-    p_retained_adj + p_debt_adj,
+    -- amount stores retained_adj for audit; full detail is in description
+    -- and the balance_after fields capture the complete post-txn state
+    p_retained_adj,
     v_merchant.retained_balance, v_merchant.debt_balance,
     COALESCE(p_description,
       format('手工调账: 留存调整 %s, 债务调整 %s', p_retained_adj, p_debt_adj)),
