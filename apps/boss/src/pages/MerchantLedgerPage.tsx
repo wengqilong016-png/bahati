@@ -102,9 +102,10 @@ export function MerchantLedgerPage() {
           >
             <option value="">All Kiosks</option>
             {kiosks.map(k => {
-              const merchant = Array.isArray(k.merchants) ? k.merchants[0] : k.merchants;
+              const merchantArr = Array.isArray(k.merchants) ? k.merchants : (k.merchants ? [k.merchants] : []);
+              const merchantName = merchantArr.length > 0 ? merchantArr[0].name : '—';
               return (
-                <option key={k.id} value={k.id}>{k.serial_number} – {merchant?.name ?? '—'}</option>
+                <option key={k.id} value={k.id}>{k.serial_number} – {merchantName}</option>
               );
             })}
           </select>

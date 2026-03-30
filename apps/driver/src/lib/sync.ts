@@ -32,7 +32,11 @@ export async function pullKiosks(): Promise<void> {
   if (data && data.length > 0) {
     // Flatten the nested merchants join into denormalised local fields
     const rows = data.map((k: Record<string, unknown>) => {
-      const merchant = k.merchants as { name: string; phone: string | null } | null;
+      // Supabase FK join may return object or array depending on relationship cardinality
+      const merchantRaw = k.merchants;
+      const merchant = Array.isArray(merchantRaw)
+        ? (merchantRaw[0] as { name: string; phone: string | null } | undefined) ?? null
+        : (merchantRaw as { name: string; phone: string | null } | null);
       return {
         id: k.id as string,
         serial_number: k.serial_number as string,

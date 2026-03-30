@@ -42,8 +42,9 @@ export function MerchantsPage() {
         supabase
           .from('kiosks')
           .select('merchant_id'),
-        // TODO [未指定]: merchants.retained_balance & debt_balance are column-level
-        // REVOKED for authenticated. Use merchant_balance_snapshots as fallback.
+        // TODO [未指定 / unspecified]: merchants.retained_balance & debt_balance
+        // are column-level REVOKED for authenticated. Use
+        // merchant_balance_snapshots as fallback.
         // A Boss-only SECURITY DEFINER read RPC should be created.
         supabase
           .from('merchant_balance_snapshots')

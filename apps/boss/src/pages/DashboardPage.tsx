@@ -84,9 +84,10 @@ export function DashboardPage() {
           .select('gross_revenue, exchange_amount, expense_amount, dividend_method, dividend_amount')
           .eq('task_date', today),
         // Merchant totals
-        // TODO [未指定]: merchants.retained_balance & debt_balance are column-level
-        // REVOKED for authenticated role (Phase 2). A Boss-only SECURITY DEFINER
-        // read RPC is needed. Using merchant_balance_snapshots as fallback for now.
+        // TODO [未指定 / unspecified]: merchants.retained_balance & debt_balance are
+        // column-level REVOKED for authenticated role (Phase 2). A Boss-only
+        // SECURITY DEFINER read RPC is needed. Using merchant_balance_snapshots
+        // as fallback for now.
         supabase
           .from('merchant_balance_snapshots')
           .select('merchant_id, retained_balance, debt_balance')
