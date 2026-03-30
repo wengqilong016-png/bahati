@@ -1,24 +1,26 @@
 -- ============================================================
--- SmartKiosk Phase 2 — Ledger & Daily Reconciliation
+-- SmartKiosk Phase 2 — Ledger & Daily Reconciliation (Revised)
 --
 -- 执行顺序 (Execution Order):
---   1.  ALTER tasks — add score_before (populated by trigger)
+--   1.  ALTER tasks — add score_before, settlement_status
 --   2.  Update validate_task_score() trigger to populate score_before
---   3.  ALTER merchants — add dividend_rate, retained_balance, debt_balance
+--   3.  ALTER merchants — add dividend_rate (CHECK 0~1), retained_balance, debt_balance
 --   4.  ALTER drivers  — add coin_balance, cash_balance
---   5.  task_settlements
---   6.  merchant_ledger
---   7.  driver_fund_ledger
---   8.  daily_driver_reconciliations
+--   5.  task_settlements (+ expense_amount, expense_note)
+--   6.  merchant_ledger (+ retained_payout, retained_to_debt_offset)
+--   7.  driver_fund_ledger (+ expense_payment)
+--   8.  daily_driver_reconciliations (+ total_expense_amount)
 --   9.  merchant_balance_snapshots
---  10.  RPC: record_task_settlement
+--  10.  RPC: record_task_settlement (+ expense, coin-balance exchange guard, balance guards)
 --  11.  RPC: record_merchant_debt / record_debt_repayment
---  12.  RPC: record_cash_handover / record_coin_topup
---  13.  RPC: submit_daily_reconciliation / confirm_daily_reconciliation
---  14.  RPC: manual_adjustment_merchant / manual_adjustment_driver
---  15.  Indexes
---  16.  RLS policies
---  17.  updated_at triggers
+--  12.  RPC: record_cash_handover (+ balance guard) / record_coin_topup
+--  13.  RPC: record_retained_payout / offset_retained_to_debt
+--  14.  RPC: submit_daily_reconciliation (+ p_driver_id, opening-balance fix, expense summary)
+--        / confirm_daily_reconciliation
+--  15.  RPC: manual_adjustment_merchant / manual_adjustment_driver
+--  16.  Indexes
+--  17.  RLS policies
+--  18.  updated_at triggers
 -- ============================================================
 --
 -- A. 数据建模说明 (Phase 2 Data Modeling Notes)
@@ -29,26 +31,31 @@
 --   gross_revenue = (score_after − score_before) × 200
 --   dividend_amount = gross_revenue × dividend_rate
 --   dividend_method: cash=现场结算 | retained=留存
---   exchange_amount: 商家拿现金向司机换硬币的金额
+--   exchange_amount: 商家拿现金向司机换硬币的金额（受限于司机当前硬币余额）
+--   expense_amount: 司机现场支出（如维修、运输费等），从现金余额扣除
 --
 -- merchant_ledger
 --   商家账本，记录商家每笔财务交易。
 --   交易类型：initial_coins, additional_loan, dividend_cash,
 --             dividend_retained, coin_exchange, debt_repayment,
+--             retained_payout, retained_to_debt_offset,
 --             manual_adjustment
 --   每笔记录含 retained_balance_after 和 debt_balance_after 快照。
 --
 -- driver_fund_ledger
 --   司机资金账本，记录硬币与现金的每笔变动。
 --   交易类型：coin_collection, coin_out_exchange, cash_in_exchange,
---             cash_dividend_paid, cash_handover, coin_topup,
---             manual_adjustment
+--             cash_dividend_paid, expense_payment, cash_handover,
+--             coin_topup, manual_adjustment
 --   每笔记录含 coin_balance_after 和 cash_balance_after 快照。
+--   余额安全规则：cash_dividend_paid, cash_handover, expense_payment,
+--     coin_out_exchange 不允许导致余额为负。
 --
 -- daily_driver_reconciliations
 --   司机每日结算核对表。
 --   开日余额 → 理论余额（从账本计算）→ 实际余额（司机报数）→ 差异
 --   核对项：理论应收现金、实际现金、理论硬币余额、实际硬币余额
+--   包含 total_expense_amount 日支出汇总。
 --
 -- merchant_balance_snapshots
 --   商家留存余额与债务余额的每日快照，在日结确认时生成。
@@ -57,19 +64,26 @@
 --   1. 商家初始借给的硬币 → merchant_ledger initial_coins → debt_balance ↑
 --   2. 商家额外借款 → merchant_ledger additional_loan → debt_balance ↑
 --   3. 商家分红：cash=现场结算 | retained=留存
---   4. 司机工作硬币 = 滚动余额 (drivers.coin_balance)
---   5. 商家账和司机账绝不能混
+--   4. 商家留存提取 → retained_payout → retained_balance ↓
+--   5. 留存抵扣债务 → retained_to_debt_offset → retained_balance ↓ + debt_balance ↓
+--   6. 司机工作硬币 = 滚动余额 (drivers.coin_balance)
+--   7. 商家账和司机账绝不能混
+--   8. 司机余额不允许为负（现金和硬币）
 -- ============================================================
 
 -- ============================================================
--- STEP 1: Extend tasks table with score_before
+-- STEP 1: Extend tasks table with score_before + settlement_status
 -- ============================================================
 
 ALTER TABLE public.tasks
-  ADD COLUMN score_before INTEGER;
+  ADD COLUMN score_before       INTEGER,
+  ADD COLUMN settlement_status  TEXT NOT NULL DEFAULT 'pending'
+    CHECK (settlement_status IN ('pending', 'settled'));
 
 COMMENT ON COLUMN public.tasks.score_before IS
   '任务创建时机器的上次记录分数（由触发器自动填充）。Phase 2 用于计算 gross_revenue = (current_score - score_before) × 200。';
+COMMENT ON COLUMN public.tasks.settlement_status IS
+  '结算状态：pending=待结算, settled=已结算。由 record_task_settlement() 更新。';
 
 -- ============================================================
 -- STEP 2: Update validate_task_score() to populate score_before
@@ -133,7 +147,9 @@ $$;
 ALTER TABLE public.merchants
   ADD COLUMN dividend_rate     NUMERIC(5,4)  NOT NULL DEFAULT 0.30,
   ADD COLUMN retained_balance  NUMERIC(14,2) NOT NULL DEFAULT 0,
-  ADD COLUMN debt_balance      NUMERIC(14,2) NOT NULL DEFAULT 0;
+  ADD COLUMN debt_balance      NUMERIC(14,2) NOT NULL DEFAULT 0,
+  ADD CONSTRAINT merchants_dividend_rate_check
+    CHECK (dividend_rate >= 0.0 AND dividend_rate <= 1.0);
 
 COMMENT ON COLUMN public.merchants.dividend_rate     IS
   '商家分红比例（0.00~1.00）。dividend_amount = gross_revenue × dividend_rate。';
@@ -176,6 +192,9 @@ CREATE TABLE public.task_settlements (
                     CHECK (dividend_method IN ('cash', 'retained')),
   exchange_amount NUMERIC(14,2) NOT NULL DEFAULT 0
                     CHECK (exchange_amount >= 0),
+  expense_amount  NUMERIC(14,2) NOT NULL DEFAULT 0
+                    CHECK (expense_amount >= 0),
+  expense_note    TEXT,
 
   created_at      TIMESTAMPTZ   NOT NULL DEFAULT now(),
 
@@ -189,12 +208,14 @@ CREATE TABLE public.task_settlements (
 );
 
 COMMENT ON TABLE public.task_settlements IS
-  '任务结算表。记录每次巡检任务的财务结算详情：营收、分红、换币。一个 task 对应最多一条 settlement。';
+  '任务结算表。记录每次巡检任务的财务结算详情：营收、分红、换币、支出。一个 task 对应最多一条 settlement。';
 COMMENT ON COLUMN public.task_settlements.gross_revenue   IS '毛收入 = (score_after − score_before) × 200。';
 COMMENT ON COLUMN public.task_settlements.dividend_rate   IS '结算时商家分红比例快照。';
 COMMENT ON COLUMN public.task_settlements.dividend_amount IS '商家分红金额 = gross_revenue × dividend_rate（四舍五入到分）。';
 COMMENT ON COLUMN public.task_settlements.dividend_method IS '分红方式：cash=现场结算，retained=留存。';
-COMMENT ON COLUMN public.task_settlements.exchange_amount IS '商家拿现金向司机换硬币的金额（≥0）。';
+COMMENT ON COLUMN public.task_settlements.exchange_amount IS '商家拿现金向司机换硬币的金额（≥0），受限于司机可用硬币余额。';
+COMMENT ON COLUMN public.task_settlements.expense_amount  IS '司机现场支出金额（≥0），从现金余额扣除。';
+COMMENT ON COLUMN public.task_settlements.expense_note    IS '支出备注说明。';
 
 -- ============================================================
 -- STEP 6: merchant_ledger
@@ -215,6 +236,8 @@ CREATE TABLE public.merchant_ledger (
                              'dividend_retained',
                              'coin_exchange',
                              'debt_repayment',
+                             'retained_payout',
+                             'retained_to_debt_offset',
                              'manual_adjustment'
                            )),
   amount                 NUMERIC(14,2) NOT NULL,
@@ -232,6 +255,8 @@ COMMENT ON COLUMN public.merchant_ledger.txn_type IS
   'initial_coins=初始硬币借出(增加债务), additional_loan=额外借款(增加债务), '
   'dividend_cash=分红现场结算, dividend_retained=分红留存(增加留存余额), '
   'coin_exchange=现金换硬币, debt_repayment=债务偿还(减少债务), '
+  'retained_payout=留存提取(减少留存余额), '
+  'retained_to_debt_offset=留存抵扣债务(同时减少留存和债务), '
   'manual_adjustment=手工调账。';
 COMMENT ON COLUMN public.merchant_ledger.amount IS
   '交易金额。语义取决于 txn_type。';
@@ -256,6 +281,7 @@ CREATE TABLE public.driver_fund_ledger (
                          'coin_out_exchange',
                          'cash_in_exchange',
                          'cash_dividend_paid',
+                         'expense_payment',
                          'cash_handover',
                          'coin_topup',
                          'manual_adjustment'
@@ -275,8 +301,8 @@ COMMENT ON TABLE  public.driver_fund_ledger IS
 COMMENT ON COLUMN public.driver_fund_ledger.txn_type IS
   'coin_collection=收币(从机器), coin_out_exchange=换币出(给商家), '
   'cash_in_exchange=换币收现(从商家), cash_dividend_paid=支付商家现场分红, '
-  'cash_handover=上缴现金(给老板), coin_topup=硬币补充(从老板), '
-  'manual_adjustment=手工调账。';
+  'expense_payment=现场支出, cash_handover=上缴现金(给老板), '
+  'coin_topup=硬币补充(从老板), manual_adjustment=手工调账。';
 COMMENT ON COLUMN public.driver_fund_ledger.coin_amount IS
   '硬币变动金额。正数=收入，负数=支出。';
 COMMENT ON COLUMN public.driver_fund_ledger.cash_amount IS
@@ -319,6 +345,7 @@ CREATE TABLE public.daily_driver_reconciliations (
   total_cash_from_exchange NUMERIC(14,2) NOT NULL DEFAULT 0,
   total_dividend_cash      NUMERIC(14,2) NOT NULL DEFAULT 0,
   total_dividend_retained  NUMERIC(14,2) NOT NULL DEFAULT 0,
+  total_expense_amount     NUMERIC(14,2) NOT NULL DEFAULT 0,
 
   status                   TEXT          NOT NULL DEFAULT 'draft'
                              CHECK (status IN ('draft', 'submitted', 'confirmed')),
@@ -335,13 +362,15 @@ CREATE TABLE public.daily_driver_reconciliations (
 COMMENT ON TABLE public.daily_driver_reconciliations IS
   '司机每日结算核对表。核对项：理论应收现金 vs 实际现金、理论硬币余额 vs 实际硬币余额。';
 COMMENT ON COLUMN public.daily_driver_reconciliations.opening_coin_balance IS
-  '开日硬币余额，取自前一日结确认后的 actual_coin_balance。';
+  '开日硬币余额，取自前一日结确认后的 actual_coin_balance；首次日结取司机当前余额。';
 COMMENT ON COLUMN public.daily_driver_reconciliations.theoretical_coin_balance IS
   '理论硬币余额 = opening_coin_balance + 当日所有 driver_fund_ledger 硬币变动合计。';
 COMMENT ON COLUMN public.daily_driver_reconciliations.actual_coin_balance IS
   '实际硬币余额，由司机盘点上报。';
 COMMENT ON COLUMN public.daily_driver_reconciliations.coin_variance IS
   '硬币差异 = actual_coin_balance − theoretical_coin_balance。';
+COMMENT ON COLUMN public.daily_driver_reconciliations.total_expense_amount IS
+  '当日支出合计，来自 driver_fund_ledger expense_payment 条目。';
 
 -- ============================================================
 -- STEP 9: merchant_balance_snapshots
@@ -367,12 +396,17 @@ COMMENT ON TABLE public.merchant_balance_snapshots IS
 --   司机或 Boss 为已提交的任务记录财务结算。
 --   计算 gross_revenue、dividend_amount，写入 task_settlements、
 --   merchant_ledger、driver_fund_ledger，更新运行余额。
+--   支持费用支出 (expense)。
+--   exchange_amount 受限于司机硬币余额（非 gross_revenue）。
+--   余额安全检查：不允许余额为负。
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.record_task_settlement(
   p_task_id         UUID,
   p_dividend_method TEXT,       -- 'cash' | 'retained'
-  p_exchange_amount NUMERIC DEFAULT 0
+  p_exchange_amount NUMERIC DEFAULT 0,
+  p_expense_amount  NUMERIC DEFAULT 0,
+  p_expense_note    TEXT    DEFAULT NULL
 )
 RETURNS UUID
 LANGUAGE plpgsql SECURITY DEFINER
@@ -394,6 +428,9 @@ BEGIN
   END IF;
   IF p_exchange_amount < 0 THEN
     RAISE EXCEPTION 'exchange_amount cannot be negative';
+  END IF;
+  IF p_expense_amount < 0 THEN
+    RAISE EXCEPTION 'expense_amount cannot be negative';
   END IF;
 
   -- Fetch task
@@ -428,23 +465,6 @@ BEGIN
   v_gross_revenue   := (v_task.current_score - v_score_before) * 200;
   v_dividend_amount := ROUND(v_gross_revenue * v_merchant.dividend_rate, 2);
 
-  -- Validate exchange_amount
-  IF p_exchange_amount > v_gross_revenue THEN
-    RAISE EXCEPTION 'exchange_amount (%) cannot exceed gross_revenue (%)',
-      p_exchange_amount, v_gross_revenue;
-  END IF;
-
-  -- ===== INSERT task_settlement =====
-  INSERT INTO public.task_settlements (
-    task_id, kiosk_id, merchant_id, driver_id, task_date,
-    score_before, score_after, gross_revenue,
-    dividend_rate, dividend_amount, dividend_method, exchange_amount
-  ) VALUES (
-    p_task_id, v_task.kiosk_id, v_kiosk.merchant_id, v_task.driver_id, v_task.task_date,
-    v_score_before, v_task.current_score, v_gross_revenue,
-    v_merchant.dividend_rate, v_dividend_amount, p_dividend_method, p_exchange_amount
-  ) RETURNING id INTO v_settlement_id;
-
   -- ===== DRIVER FUND LEDGER =====
 
   -- 1) Coin collection: driver picks up all coins from the machine
@@ -454,7 +474,7 @@ BEGIN
     coin_amount, cash_amount, coin_balance_after, cash_balance_after,
     description, created_by
   ) VALUES (
-    v_task.driver_id, p_task_id, v_settlement_id, 'coin_collection',
+    v_task.driver_id, p_task_id, NULL, 'coin_collection',
     v_gross_revenue, 0, v_driver.coin_balance, v_driver.cash_balance,
     format('收币: 机器 %s, 分数 %s→%s, 毛收入 %s',
       v_kiosk.serial_number, v_score_before, v_task.current_score, v_gross_revenue),
@@ -462,14 +482,20 @@ BEGIN
   );
 
   -- 2) Coin exchange: driver gives coins to merchant, receives cash
+  --    Validate against driver's available coin balance (not gross_revenue).
   IF p_exchange_amount > 0 THEN
+    IF v_driver.coin_balance < p_exchange_amount THEN
+      RAISE EXCEPTION 'Insufficient coin balance (%) for exchange amount (%)',
+        v_driver.coin_balance, p_exchange_amount;
+    END IF;
+
     v_driver.coin_balance := v_driver.coin_balance - p_exchange_amount;
     INSERT INTO public.driver_fund_ledger (
       driver_id, task_id, settlement_id, txn_type,
       coin_amount, cash_amount, coin_balance_after, cash_balance_after,
       description, created_by
     ) VALUES (
-      v_task.driver_id, p_task_id, v_settlement_id, 'coin_out_exchange',
+      v_task.driver_id, p_task_id, NULL, 'coin_out_exchange',
       -p_exchange_amount, 0, v_driver.coin_balance, v_driver.cash_balance,
       format('换币出: 商家 %s, 金额 %s', v_merchant.name, p_exchange_amount),
       auth.uid()
@@ -481,7 +507,7 @@ BEGIN
       coin_amount, cash_amount, coin_balance_after, cash_balance_after,
       description, created_by
     ) VALUES (
-      v_task.driver_id, p_task_id, v_settlement_id, 'cash_in_exchange',
+      v_task.driver_id, p_task_id, NULL, 'cash_in_exchange',
       0, p_exchange_amount, v_driver.coin_balance, v_driver.cash_balance,
       format('换币收现: 商家 %s, 金额 %s', v_merchant.name, p_exchange_amount),
       auth.uid()
@@ -490,15 +516,40 @@ BEGIN
 
   -- 3) Cash dividend paid: driver pays merchant cash if dividend_method = 'cash'
   IF p_dividend_method = 'cash' AND v_dividend_amount > 0 THEN
+    IF v_driver.cash_balance < v_dividend_amount THEN
+      RAISE EXCEPTION 'Insufficient cash balance (%) for dividend payment (%)',
+        v_driver.cash_balance, v_dividend_amount;
+    END IF;
+
     v_driver.cash_balance := v_driver.cash_balance - v_dividend_amount;
     INSERT INTO public.driver_fund_ledger (
       driver_id, task_id, settlement_id, txn_type,
       coin_amount, cash_amount, coin_balance_after, cash_balance_after,
       description, created_by
     ) VALUES (
-      v_task.driver_id, p_task_id, v_settlement_id, 'cash_dividend_paid',
+      v_task.driver_id, p_task_id, NULL, 'cash_dividend_paid',
       0, -v_dividend_amount, v_driver.coin_balance, v_driver.cash_balance,
       format('支付商家 %s 现场分红 %s', v_merchant.name, v_dividend_amount),
+      auth.uid()
+    );
+  END IF;
+
+  -- 4) Expense payment: driver pays out-of-pocket expense if expense_amount > 0
+  IF p_expense_amount > 0 THEN
+    IF v_driver.cash_balance < p_expense_amount THEN
+      RAISE EXCEPTION 'Insufficient cash balance (%) for expense payment (%)',
+        v_driver.cash_balance, p_expense_amount;
+    END IF;
+
+    v_driver.cash_balance := v_driver.cash_balance - p_expense_amount;
+    INSERT INTO public.driver_fund_ledger (
+      driver_id, task_id, settlement_id, txn_type,
+      coin_amount, cash_amount, coin_balance_after, cash_balance_after,
+      description, created_by
+    ) VALUES (
+      v_task.driver_id, p_task_id, NULL, 'expense_payment',
+      0, -p_expense_amount, v_driver.coin_balance, v_driver.cash_balance,
+      format('现场支出 %s: %s', p_expense_amount, COALESCE(p_expense_note, '')),
       auth.uid()
     );
   END IF;
@@ -508,6 +559,25 @@ BEGIN
   SET coin_balance = v_driver.coin_balance,
       cash_balance = v_driver.cash_balance
   WHERE id = v_task.driver_id;
+
+  -- ===== INSERT task_settlement =====
+  -- (inserted after driver ledger entries so we have validated all balances)
+  INSERT INTO public.task_settlements (
+    task_id, kiosk_id, merchant_id, driver_id, task_date,
+    score_before, score_after, gross_revenue,
+    dividend_rate, dividend_amount, dividend_method,
+    exchange_amount, expense_amount, expense_note
+  ) VALUES (
+    p_task_id, v_task.kiosk_id, v_kiosk.merchant_id, v_task.driver_id, v_task.task_date,
+    v_score_before, v_task.current_score, v_gross_revenue,
+    v_merchant.dividend_rate, v_dividend_amount, p_dividend_method,
+    p_exchange_amount, p_expense_amount, p_expense_note
+  ) RETURNING id INTO v_settlement_id;
+
+  -- Back-fill settlement_id on driver_fund_ledger entries for this task
+  UPDATE public.driver_fund_ledger
+  SET settlement_id = v_settlement_id
+  WHERE task_id = p_task_id AND settlement_id IS NULL;
 
   -- ===== MERCHANT LEDGER =====
 
@@ -559,12 +629,17 @@ BEGIN
       debt_balance     = v_merchant.debt_balance
   WHERE id = v_kiosk.merchant_id;
 
+  -- Mark task as settled
+  UPDATE public.tasks
+  SET settlement_status = 'settled'
+  WHERE id = p_task_id;
+
   RETURN v_settlement_id;
 END;
 $$;
 
 COMMENT ON FUNCTION public.record_task_settlement IS
-  '为已提交的任务记录财务结算。调用者：任务司机或 Boss。';
+  '为已提交的任务记录财务结算。调用者：任务司机或 Boss。支持费用支出，exchange 受限于司机硬币余额，余额不允许为负。';
 
 -- ============================================================
 -- STEP 11: RPC — record_merchant_debt / record_debt_repayment
@@ -717,6 +792,12 @@ BEGIN
     RAISE EXCEPTION 'Driver not found: %', p_driver_id;
   END IF;
 
+  -- Balance safety guard: do not allow cash_balance to go negative
+  IF v_driver.cash_balance < p_amount THEN
+    RAISE EXCEPTION 'Insufficient cash balance (%) for handover amount (%)',
+      v_driver.cash_balance, p_amount;
+  END IF;
+
   -- Decrease driver cash balance
   v_driver.cash_balance := v_driver.cash_balance - p_amount;
 
@@ -742,7 +823,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.record_cash_handover IS
-  '记录司机上缴现金给老板。Boss 专用。';
+  '记录司机上缴现金给老板。Boss 专用。余额不足时拒绝操作。';
 
 -- ----------------------------------------------------------
 
@@ -800,15 +881,141 @@ COMMENT ON FUNCTION public.record_coin_topup IS
   '记录老板为司机补充工作硬币。Boss 专用。';
 
 -- ============================================================
--- STEP 13: RPC — submit_daily_reconciliation /
+-- STEP 13: RPC — record_retained_payout / offset_retained_to_debt
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.record_retained_payout(
+  p_merchant_id UUID,
+  p_amount      NUMERIC,
+  p_description TEXT DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_merchant  public.merchants%ROWTYPE;
+  v_ledger_id UUID;
+BEGIN
+  IF NOT public.is_boss() THEN
+    RAISE EXCEPTION 'Permission denied: only bosses can record retained payouts';
+  END IF;
+
+  IF p_amount <= 0 THEN
+    RAISE EXCEPTION 'amount must be positive';
+  END IF;
+
+  SELECT * INTO v_merchant FROM public.merchants WHERE id = p_merchant_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Merchant not found: %', p_merchant_id;
+  END IF;
+
+  IF p_amount > v_merchant.retained_balance THEN
+    RAISE EXCEPTION 'Payout amount (%) exceeds retained balance (%)',
+      p_amount, v_merchant.retained_balance;
+  END IF;
+
+  -- Decrease retained balance
+  v_merchant.retained_balance := v_merchant.retained_balance - p_amount;
+
+  INSERT INTO public.merchant_ledger (
+    merchant_id, txn_type, amount,
+    retained_balance_after, debt_balance_after,
+    description, created_by
+  ) VALUES (
+    p_merchant_id, 'retained_payout', -p_amount,
+    v_merchant.retained_balance, v_merchant.debt_balance,
+    COALESCE(p_description, format('留存提取 %s', p_amount)),
+    auth.uid()
+  ) RETURNING id INTO v_ledger_id;
+
+  UPDATE public.merchants
+  SET retained_balance = v_merchant.retained_balance
+  WHERE id = p_merchant_id;
+
+  RETURN v_ledger_id;
+END;
+$$;
+
+COMMENT ON FUNCTION public.record_retained_payout IS
+  '记录商家留存余额提取。Boss 专用。提取金额不得超过当前留存余额。';
+
+-- ----------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.offset_retained_to_debt(
+  p_merchant_id UUID,
+  p_amount      NUMERIC,
+  p_description TEXT DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_merchant  public.merchants%ROWTYPE;
+  v_ledger_id UUID;
+BEGIN
+  IF NOT public.is_boss() THEN
+    RAISE EXCEPTION 'Permission denied: only bosses can offset retained to debt';
+  END IF;
+
+  IF p_amount <= 0 THEN
+    RAISE EXCEPTION 'amount must be positive';
+  END IF;
+
+  SELECT * INTO v_merchant FROM public.merchants WHERE id = p_merchant_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Merchant not found: %', p_merchant_id;
+  END IF;
+
+  IF p_amount > v_merchant.retained_balance THEN
+    RAISE EXCEPTION 'Offset amount (%) exceeds retained balance (%)',
+      p_amount, v_merchant.retained_balance;
+  END IF;
+
+  IF p_amount > v_merchant.debt_balance THEN
+    RAISE EXCEPTION 'Offset amount (%) exceeds debt balance (%)',
+      p_amount, v_merchant.debt_balance;
+  END IF;
+
+  -- Atomically reduce both retained_balance and debt_balance
+  v_merchant.retained_balance := v_merchant.retained_balance - p_amount;
+  v_merchant.debt_balance     := v_merchant.debt_balance - p_amount;
+
+  INSERT INTO public.merchant_ledger (
+    merchant_id, txn_type, amount,
+    retained_balance_after, debt_balance_after,
+    description, created_by
+  ) VALUES (
+    p_merchant_id, 'retained_to_debt_offset', -p_amount,
+    v_merchant.retained_balance, v_merchant.debt_balance,
+    COALESCE(p_description, format('留存抵扣债务 %s', p_amount)),
+    auth.uid()
+  ) RETURNING id INTO v_ledger_id;
+
+  UPDATE public.merchants
+  SET retained_balance = v_merchant.retained_balance,
+      debt_balance     = v_merchant.debt_balance
+  WHERE id = p_merchant_id;
+
+  RETURN v_ledger_id;
+END;
+$$;
+
+COMMENT ON FUNCTION public.offset_retained_to_debt IS
+  '留存抵扣债务：同时减少商家留存余额和债务余额。Boss 专用。金额不得超过留存余额或债务余额。';
+
+-- ============================================================
+-- STEP 14: RPC — submit_daily_reconciliation /
 --                confirm_daily_reconciliation
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.submit_daily_reconciliation(
-  p_date               DATE,
+  p_date                DATE,
   p_actual_coin_balance NUMERIC,
   p_actual_cash_balance NUMERIC,
-  p_notes              TEXT DEFAULT NULL
+  p_notes               TEXT DEFAULT NULL,
+  p_driver_id           UUID DEFAULT NULL  -- Boss can specify driver; driver uses own id
 )
 RETURNS UUID
 LANGUAGE plpgsql SECURITY DEFINER
@@ -816,6 +1023,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_driver_id          UUID;
+  v_driver             public.drivers%ROWTYPE;
   v_opening_coin       NUMERIC(14,2);
   v_opening_cash       NUMERIC(14,2);
   v_theoretical_coin   NUMERIC(14,2);
@@ -827,16 +1035,26 @@ DECLARE
   v_total_cash_exch    NUMERIC(14,2);
   v_total_div_cash     NUMERIC(14,2);
   v_total_div_retained NUMERIC(14,2);
+  v_total_expense      NUMERIC(14,2);
   v_day_coin_delta     NUMERIC(14,2);
   v_day_cash_delta     NUMERIC(14,2);
   v_rec_id             UUID;
   v_prev_rec           public.daily_driver_reconciliations%ROWTYPE;
 BEGIN
-  v_driver_id := auth.uid();
+  -- Determine target driver
+  IF p_driver_id IS NOT NULL THEN
+    -- Boss submitting on behalf of a driver
+    IF NOT public.is_boss() THEN
+      RAISE EXCEPTION 'Permission denied: only bosses can submit reconciliation for another driver';
+    END IF;
+    v_driver_id := p_driver_id;
+  ELSE
+    v_driver_id := auth.uid();
+  END IF;
 
-  -- Verify driver exists (boss can also submit on behalf)
-  IF NOT EXISTS (SELECT 1 FROM public.drivers WHERE id = v_driver_id)
-     AND NOT public.is_boss() THEN
+  -- Verify driver exists
+  SELECT * INTO v_driver FROM public.drivers WHERE id = v_driver_id;
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'Driver not found: %', v_driver_id;
   END IF;
 
@@ -861,10 +1079,16 @@ BEGIN
     v_opening_coin := v_prev_rec.actual_coin_balance;
     v_opening_cash := v_prev_rec.actual_cash_balance;
   ELSE
-    -- No previous confirmed reconciliation; use current driver balance as fallback
-    -- (for the very first reconciliation, opening = 0 unless coins were topped up)
-    v_opening_coin := 0;
-    v_opening_cash := 0;
+    -- No previous confirmed reconciliation; use driver's current running balance
+    -- This handles the first-ever reconciliation correctly when coins were topped up.
+    SELECT
+      COALESCE(d.coin_balance, 0),
+      COALESCE(d.cash_balance, 0)
+    INTO
+      v_opening_coin,
+      v_opening_cash
+    FROM public.drivers d
+    WHERE d.id = v_driver_id;
   END IF;
 
   -- Aggregate from task_settlements for the day.
@@ -875,10 +1099,12 @@ BEGIN
     COALESCE(SUM(gross_revenue), 0),
     COALESCE(SUM(exchange_amount), 0),
     COALESCE(SUM(CASE WHEN dividend_method = 'cash' THEN dividend_amount ELSE 0 END), 0),
-    COALESCE(SUM(CASE WHEN dividend_method = 'retained' THEN dividend_amount ELSE 0 END), 0)
+    COALESCE(SUM(CASE WHEN dividend_method = 'retained' THEN dividend_amount ELSE 0 END), 0),
+    COALESCE(SUM(expense_amount), 0)
   INTO
     v_total_kiosks, v_total_gross,
-    v_total_coins_exch, v_total_div_cash, v_total_div_retained
+    v_total_coins_exch, v_total_div_cash, v_total_div_retained,
+    v_total_expense
   FROM public.task_settlements
   WHERE driver_id = v_driver_id
     AND task_date = p_date;
@@ -886,6 +1112,16 @@ BEGIN
   -- coins_collected equals gross_revenue; cash_from_exchange equals exchange_amount (at par)
   v_total_coins_coll := v_total_gross;
   v_total_cash_exch  := v_total_coins_exch;
+
+  -- Also sum expense_payment entries from driver_fund_ledger not tied to task_settlements
+  -- (in case expenses are recorded outside task settlements in the future)
+  SELECT COALESCE(SUM(ABS(cash_amount)), 0)
+  INTO v_total_expense
+  FROM public.driver_fund_ledger
+  WHERE driver_id = v_driver_id
+    AND txn_type = 'expense_payment'
+    AND created_at >= p_date::timestamptz
+    AND created_at <  (p_date + INTERVAL '1 day')::timestamptz;
 
   -- Theoretical balance from ledger (accounts for ALL transactions, not just tasks).
   -- Use range comparison instead of created_at::date for index efficiency.
@@ -909,6 +1145,7 @@ BEGIN
     total_kiosks_visited, total_gross_revenue,
     total_coins_collected, total_coins_exchanged,
     total_cash_from_exchange, total_dividend_cash, total_dividend_retained,
+    total_expense_amount,
     status, notes
   ) VALUES (
     v_driver_id, p_date,
@@ -920,6 +1157,7 @@ BEGIN
     v_total_kiosks, v_total_gross,
     v_total_coins_coll, v_total_coins_exch,
     v_total_cash_exch, v_total_div_cash, v_total_div_retained,
+    v_total_expense,
     'submitted', p_notes
   ) RETURNING id INTO v_rec_id;
 
@@ -928,7 +1166,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.submit_daily_reconciliation IS
-  '司机提交每日结算核对。计算理论余额并记录实际余额与差异。';
+  '提交每日结算核对。司机提交自己的，Boss 可通过 p_driver_id 代替司机提交。计算理论余额并记录实际余额与差异。';
 
 -- ----------------------------------------------------------
 
@@ -990,7 +1228,7 @@ COMMENT ON FUNCTION public.confirm_daily_reconciliation IS
   'Boss 确认司机每日结算核对。确认后更新司机余额为实际值，并生成商家余额快照。';
 
 -- ============================================================
--- STEP 14: RPC — manual_adjustment_merchant /
+-- STEP 15: RPC — manual_adjustment_merchant /
 --                manual_adjustment_driver
 -- ============================================================
 
@@ -1110,7 +1348,7 @@ COMMENT ON FUNCTION public.manual_adjustment_driver IS
   '老板手工调整司机硬币余额和/或现金余额。';
 
 -- ============================================================
--- STEP 15: Indexes
+-- STEP 16: Indexes
 -- ============================================================
 
 -- task_settlements
@@ -1131,6 +1369,8 @@ CREATE INDEX idx_dfl_task       ON public.driver_fund_ledger (task_id);
 CREATE INDEX idx_dfl_settlement ON public.driver_fund_ledger (settlement_id);
 CREATE INDEX idx_dfl_created    ON public.driver_fund_ledger (created_at DESC);
 CREATE INDEX idx_dfl_txn_type   ON public.driver_fund_ledger (txn_type);
+-- Composite index for date-range queries on driver_fund_ledger
+CREATE INDEX idx_dfl_driver_created ON public.driver_fund_ledger (driver_id, created_at);
 
 -- daily_driver_reconciliations
 CREATE INDEX idx_ddr_driver_date ON public.daily_driver_reconciliations (driver_id, reconciliation_date DESC);
@@ -1139,8 +1379,11 @@ CREATE INDEX idx_ddr_status      ON public.daily_driver_reconciliations (status)
 -- merchant_balance_snapshots
 CREATE INDEX idx_mbs_merchant_date ON public.merchant_balance_snapshots (merchant_id, snapshot_date DESC);
 
+-- tasks settlement_status
+CREATE INDEX idx_tasks_settlement_status ON public.tasks (settlement_status);
+
 -- ============================================================
--- STEP 16: Row Level Security
+-- STEP 17: Row Level Security
 -- ============================================================
 
 ALTER TABLE public.task_settlements             ENABLE ROW LEVEL SECURITY;
@@ -1172,7 +1415,8 @@ CREATE POLICY "dfl_select"
   USING (driver_id = auth.uid() OR public.is_boss());
 
 -- -------- daily_driver_reconciliations --------
--- Driver sees own; boss sees all. Driver can insert own. Boss can update.
+-- Driver sees own; boss sees all.
+-- Inserts and updates managed by RPC (SECURITY DEFINER).
 
 CREATE POLICY "ddr_select"
   ON public.daily_driver_reconciliations FOR SELECT
@@ -1190,7 +1434,7 @@ CREATE POLICY "mbs_select_boss"
   USING (public.is_boss());
 
 -- ============================================================
--- STEP 17: updated_at triggers for new tables
+-- STEP 18: updated_at triggers for new tables
 -- ============================================================
 
 CREATE TRIGGER trg_daily_driver_reconciliations_updated_at
