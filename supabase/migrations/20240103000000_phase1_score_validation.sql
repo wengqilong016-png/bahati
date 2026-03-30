@@ -13,7 +13,7 @@ BEGIN
   FROM public.machines
   WHERE id = NEW.machine_id;
 
-  IF NOT FOUND THEN
+  IF v_last_score IS NULL THEN
     RAISE EXCEPTION 'Machine % not found', NEW.machine_id;
   END IF;
 
