@@ -441,8 +441,13 @@ BEGIN
     RAISE EXCEPTION 'Task not found: %', p_task_id;
   END IF;
 
+  -- Ensure caller is authenticated
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Permission denied: unauthenticated users cannot settle tasks';
+  END IF;
+
   -- Permission: task owner or boss
-  IF v_task.driver_id <> auth.uid() AND NOT public.is_boss() THEN
+  IF v_task.driver_id IS DISTINCT FROM auth.uid() AND NOT public.is_boss() THEN
     RAISE EXCEPTION 'Permission denied: you are not the driver for this task';
   END IF;
 
@@ -643,11 +648,15 @@ BEGIN
     );
   END IF;
 
-  -- Update merchant running balances
+  -- Update merchant running balances (only if they actually changed to avoid no-op updates)
   UPDATE public.merchants
   SET retained_balance = v_merchant.retained_balance,
       debt_balance     = v_merchant.debt_balance
-  WHERE id = v_kiosk.merchant_id;
+  WHERE id = v_kiosk.merchant_id
+    AND (
+      retained_balance IS DISTINCT FROM v_merchant.retained_balance OR
+      debt_balance     IS DISTINCT FROM v_merchant.debt_balance
+    );
 
   -- Mark task as settled
   UPDATE public.tasks
@@ -1072,6 +1081,14 @@ BEGIN
     v_driver_id := auth.uid();
   END IF;
 
+  -- Validate actual balance inputs (prevent negative values from being written to driver balances on confirmation)
+  IF p_actual_coin_balance < 0 THEN
+    RAISE EXCEPTION 'actual_coin_balance cannot be negative: %', p_actual_coin_balance;
+  END IF;
+  IF p_actual_cash_balance < 0 THEN
+    RAISE EXCEPTION 'actual_cash_balance cannot be negative: %', p_actual_cash_balance;
+  END IF;
+
   -- Verify driver exists
   SELECT * INTO v_driver FROM public.drivers WHERE id = v_driver_id;
   IF NOT FOUND THEN
@@ -1112,6 +1129,11 @@ BEGIN
   END IF;
 
   -- Aggregate from task_settlements for the day.
+  -- NOTE: task_settlements is filtered by task_date while driver_fund_ledger (below)
+  -- is filtered by created_at. This assumes settlements are recorded on the same
+  -- calendar day as the task. If settlements are backdated, these summary totals
+  -- may not perfectly match the theoretical balance calculation. The theoretical
+  -- balance (from ledger) is the authoritative source for reconciliation accuracy.
   -- Note: coins_collected = gross_revenue (driver collects all coins worth gross_revenue).
   -- Note: coins_exchanged = cash_from_exchange = exchange_amount (coins and cash swap at par).
   SELECT
@@ -1228,7 +1250,10 @@ BEGIN
       cash_balance = v_rec.actual_cash_balance
   WHERE id = v_rec.driver_id;
 
-  -- Create merchant balance snapshots for active merchants
+  -- Create merchant balance snapshots for active merchants.
+  -- NOTE: Snapshots reflect current merchant balances at confirmation time.
+  -- For accurate snapshots, reconciliations should be confirmed in chronological
+  -- order and no backdated balance changes should occur after confirmation.
   INSERT INTO public.merchant_balance_snapshots (
     merchant_id, snapshot_date, retained_balance, debt_balance
   )
@@ -1279,6 +1304,14 @@ BEGIN
 
   v_merchant.retained_balance := v_merchant.retained_balance + p_retained_adj;
   v_merchant.debt_balance     := v_merchant.debt_balance + p_debt_adj;
+
+  -- Prevent negative balances after manual adjustment
+  IF v_merchant.retained_balance < 0 OR v_merchant.debt_balance < 0 THEN
+    RAISE EXCEPTION
+      'Manual adjustment would result in negative balances: retained_balance=%, debt_balance=%',
+      v_merchant.retained_balance,
+      v_merchant.debt_balance;
+  END IF;
 
   INSERT INTO public.merchant_ledger (
     merchant_id, txn_type, amount,
@@ -1338,6 +1371,13 @@ BEGIN
 
   v_driver.coin_balance := v_driver.coin_balance + p_coin_adj;
   v_driver.cash_balance := v_driver.cash_balance + p_cash_adj;
+
+  -- Prevent negative balances after manual adjustment
+  IF v_driver.coin_balance < 0 OR v_driver.cash_balance < 0 THEN
+    RAISE EXCEPTION
+      'Manual adjustment would cause negative driver balance: coin_balance=%, cash_balance=%',
+      v_driver.coin_balance, v_driver.cash_balance;
+  END IF;
 
   INSERT INTO public.driver_fund_ledger (
     driver_id, txn_type,
@@ -1458,6 +1498,31 @@ CREATE POLICY "mbs_select_boss"
 CREATE TRIGGER trg_daily_driver_reconciliations_updated_at
   BEFORE UPDATE ON public.daily_driver_reconciliations
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- ============================================================
+-- STEP 19: Column-level privilege restrictions
+--
+-- Phase 1 RLS allows drivers to UPDATE their own row ("drivers_update_own").
+-- Without column-level restrictions, a driver could directly UPDATE
+-- coin_balance/cash_balance and bypass ledger accounting controls.
+--
+-- Similarly, Phase 1 allows all authenticated users to SELECT from merchants.
+-- Without column restrictions, drivers can read sensitive financial balances.
+--
+-- Fix: Revoke direct UPDATE on balance columns from authenticated role,
+-- then re-grant to service_role (used by SECURITY DEFINER RPCs).
+-- Revoke SELECT on sensitive merchant columns from authenticated role,
+-- then re-grant to service_role.
+-- ============================================================
+
+-- Prevent drivers from directly updating their balance columns
+REVOKE UPDATE (coin_balance, cash_balance) ON public.drivers FROM authenticated;
+GRANT  UPDATE (coin_balance, cash_balance) ON public.drivers TO service_role;
+
+-- Prevent non-boss users from reading sensitive merchant financial columns.
+-- Boss access is through SECURITY DEFINER RPCs or service_role.
+REVOKE SELECT (retained_balance, debt_balance) ON public.merchants FROM authenticated;
+GRANT  SELECT (retained_balance, debt_balance) ON public.merchants TO service_role;
 
 -- ============================================================
 -- END Phase 2 Migration
