@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useRef, useCallback, FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { PhotoCapture } from '../components/PhotoCapture';
@@ -7,12 +7,16 @@ import { db } from '../lib/db';
 import type { OnboardingType } from '../lib/types';
 import { ONBOARDING_TYPES } from '../lib/types';
 import { saveOnboarding } from '../lib/actions';
+import { uploadOnboardingPhoto } from '../lib/storage';
 
 export function OnboardKioskPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const kiosks = useLiveQuery(() => db.kiosks.toArray(), []);
+
+  // Pre-generate a stable ID for this onboarding session's storage path
+  const onboardingIdRef = useRef<string>(crypto.randomUUID());
 
   const initialType: OnboardingType =
     searchParams.get('type') === 'recertification' ? 'recertification' : 'onboarding';
@@ -29,9 +33,10 @@ export function OnboardKioskPage() {
   const title = isRecert ? 'Re-certification' : 'Kiosk Onboarding';
   const submitLabel = isRecert ? 'Submit Re-certification' : 'Submit Onboarding';
 
-  const handlePhoto = (dataUrl: string) => {
-    setPhotos(prev => [...prev, dataUrl]);
-  };
+  const uploadFn = useCallback(
+    (file: File) => uploadOnboardingPhoto(file, onboardingIdRef.current),
+    [],
+  );
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -41,6 +46,7 @@ export function OnboardKioskPage() {
 
     try {
       await saveOnboarding({
+        id: onboardingIdRef.current,
         kioskId,
         onboardingType,
         photoUrls: photos,
@@ -133,20 +139,18 @@ export function OnboardKioskPage() {
 
         <div style={{ marginBottom: 20 }}>
           <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
-            Photos ({photos.length}){!isRecert && ' *'}
+            照片 ({photos.length}){!isRecert && ' *'}
           </label>
-          <PhotoCapture onCapture={handlePhoto} />
+          <PhotoCapture
+            photos={photos}
+            onPhotosChange={setPhotos}
+            uploadFn={uploadFn}
+            disabled={saving}
+          />
           {!isRecert && photos.length === 0 && (
             <p style={{ margin: '6px 0 0', fontSize: 12, color: '#e65100' }}>
               At least one photo is required for onboarding.
             </p>
-          )}
-          {photos.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-              {photos.map((p, i) => (
-                <img key={i} src={p} alt={`photo ${i + 1}`} style={{ width: 70, height: 70, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd' }} />
-              ))}
-            </div>
           )}
         </div>
 
