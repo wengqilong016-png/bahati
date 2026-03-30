@@ -2,8 +2,8 @@
 -- SmartKiosk Phase 2 — Ledger & Daily Reconciliation (Revised)
 --
 -- 执行顺序 (Execution Order):
---   1.  ALTER tasks — add score_before, settlement_status
---   2.  Update validate_task_score() trigger to populate score_before
+--   1.  ALTER tasks — add score_before, dividend_rate_snapshot, settlement_status
+--   2.  Update validate_task_score() trigger to populate score_before + dividend_rate_snapshot
 --   3.  ALTER merchants — add dividend_rate (CHECK 0~1), retained_balance, debt_balance
 --   4.  ALTER drivers  — add coin_balance, cash_balance
 --   5.  task_settlements (+ expense_amount, expense_note)
@@ -29,7 +29,7 @@
 -- task_settlements
 --   每次巡检任务的财务结算详情。
 --   gross_revenue = (score_after − score_before) × 200
---   dividend_amount = gross_revenue × dividend_rate
+--   dividend_amount = gross_revenue × tasks.dividend_rate_snapshot（任务创建时快照）
 --   dividend_method: cash=现场结算 | retained=留存
 --   exchange_amount: 商家拿现金向司机换硬币的金额（受限于司机当前硬币余额）
 --   expense_amount: 司机现场支出（如维修、运输费等），从现金余额扣除
@@ -72,27 +72,33 @@
 -- ============================================================
 
 -- ============================================================
--- STEP 1: Extend tasks table with score_before + settlement_status
+-- STEP 1: Extend tasks table with score_before, dividend_rate_snapshot,
+--         settlement_status
 -- ============================================================
 
 ALTER TABLE public.tasks
-  ADD COLUMN score_before       INTEGER,
-  ADD COLUMN settlement_status  TEXT NOT NULL DEFAULT 'pending'
+  ADD COLUMN score_before            INTEGER,
+  ADD COLUMN dividend_rate_snapshot   NUMERIC(5,4),
+  ADD COLUMN settlement_status       TEXT NOT NULL DEFAULT 'pending'
     CHECK (settlement_status IN ('pending', 'settled'));
 
 COMMENT ON COLUMN public.tasks.score_before IS
   '任务创建时机器的上次记录分数（由触发器自动填充）。Phase 2 用于计算 gross_revenue = (current_score - score_before) × 200。';
+COMMENT ON COLUMN public.tasks.dividend_rate_snapshot IS
+  '任务创建时的商家分红比例快照（由触发器自动填充）。结算时使用此快照而非商家当前比例，避免比例变更后历史任务计算漂移。';
 COMMENT ON COLUMN public.tasks.settlement_status IS
   '结算状态：pending=待结算, settled=已结算。由 record_task_settlement() 更新。';
 
 -- ============================================================
 -- STEP 2: Update validate_task_score() to populate score_before
+--         and dividend_rate_snapshot
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.validate_task_score()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 DECLARE
   v_kiosk         public.kiosks%ROWTYPE;
+  v_merchant      public.merchants%ROWTYPE;
   v_merchant_name TEXT;
   v_driver_name   TEXT;
 BEGIN
@@ -113,9 +119,11 @@ BEGIN
   END IF;
 
   -- Resolve snapshot values from related tables
-  SELECT m.name INTO v_merchant_name
+  SELECT * INTO v_merchant
   FROM public.merchants m
   WHERE m.id = v_kiosk.merchant_id;
+
+  v_merchant_name := COALESCE(v_merchant.name, '');
 
   SELECT d.full_name INTO v_driver_name
   FROM public.drivers d
@@ -123,12 +131,17 @@ BEGIN
 
   -- Populate snapshot fields (overwrite any client-supplied values)
   NEW.snapshot_serial_number := v_kiosk.serial_number;
-  NEW.snapshot_merchant_name := COALESCE(v_merchant_name, '');
+  NEW.snapshot_merchant_name := v_merchant_name;
   NEW.snapshot_location_name := v_kiosk.location_name;
   NEW.snapshot_driver_name   := COALESCE(v_driver_name, '');
 
   -- Phase 2: record score_before for revenue calculation
   NEW.score_before := v_kiosk.last_recorded_score;
+
+  -- Phase 2: snapshot dividend_rate at task creation time.
+  -- Settlement uses this snapshot (not the merchant's current rate) to prevent
+  -- historical task calculations from drifting when the rate is changed later.
+  NEW.dividend_rate_snapshot := COALESCE(v_merchant.dividend_rate, 0);
 
   -- Advance kiosk's last_recorded_score
   UPDATE public.kiosks
@@ -456,10 +469,10 @@ BEGIN
     RAISE EXCEPTION 'Settlement already recorded for task: %', p_task_id;
   END IF;
 
-  -- score_before must be populated by the Phase 2 trigger.
-  -- Reject legacy tasks that lack score_before to prevent incorrect revenue calculation.
-  IF v_task.score_before IS NULL THEN
-    RAISE EXCEPTION 'Task % has no score_before. Only tasks created after Phase 2 migration can be settled.', p_task_id;
+  -- score_before and dividend_rate_snapshot must be populated by the Phase 2 trigger.
+  -- Reject legacy tasks that lack these fields to prevent incorrect revenue calculation.
+  IF v_task.score_before IS NULL OR v_task.dividend_rate_snapshot IS NULL THEN
+    RAISE EXCEPTION 'Task % has no score_before/dividend_rate_snapshot. Only tasks created after Phase 2 migration can be settled.', p_task_id;
   END IF;
   v_score_before := v_task.score_before;
 
@@ -468,9 +481,10 @@ BEGIN
   SELECT * INTO v_merchant FROM public.merchants WHERE id = v_kiosk.merchant_id FOR UPDATE;
   SELECT * INTO v_driver   FROM public.drivers   WHERE id = v_task.driver_id   FOR UPDATE;
 
-  -- Calculate revenue
+  -- Calculate revenue using the dividend_rate snapshot from task creation time
+  -- (not the merchant's current rate, which may have changed since the task was created).
   v_gross_revenue   := (v_task.current_score - v_score_before) * 200;
-  v_dividend_amount := ROUND(v_gross_revenue * v_merchant.dividend_rate, 2);
+  v_dividend_amount := ROUND(v_gross_revenue * v_task.dividend_rate_snapshot, 2);
 
   -- ===== BALANCE PRE-VALIDATION =====
   -- Simulate all balance changes in memory to validate before any writes.
@@ -518,7 +532,7 @@ BEGIN
   ) VALUES (
     p_task_id, v_task.kiosk_id, v_kiosk.merchant_id, v_task.driver_id, v_task.task_date,
     v_score_before, v_task.current_score, v_gross_revenue,
-    v_merchant.dividend_rate, v_dividend_amount, p_dividend_method,
+    v_task.dividend_rate_snapshot, v_dividend_amount, p_dividend_method,
     p_exchange_amount, p_expense_amount, p_expense_note
   ) RETURNING id INTO v_settlement_id;
 
@@ -1057,6 +1071,7 @@ DECLARE
   v_opening_cash       NUMERIC(14,2);
   v_theoretical_coin   NUMERIC(14,2);
   v_theoretical_cash   NUMERIC(14,2);
+  v_has_prev_rec       BOOLEAN := FALSE;
   v_total_kiosks       INTEGER;
   v_total_gross        NUMERIC(14,2);
   v_total_coins_coll   NUMERIC(14,2);
@@ -1112,24 +1127,32 @@ BEGIN
   ORDER BY reconciliation_date DESC
   LIMIT 1;
 
-  IF FOUND THEN
+  v_has_prev_rec := FOUND;
+
+  -- Compute today's ledger delta BEFORE opening balance (needed for first-reconciliation fix)
+  -- Theoretical balance from ledger (accounts for ALL transactions, not just tasks).
+  -- Use range comparison instead of created_at::date for index efficiency.
+  SELECT COALESCE(SUM(coin_amount), 0), COALESCE(SUM(cash_amount), 0)
+  INTO v_day_coin_delta, v_day_cash_delta
+  FROM public.driver_fund_ledger
+  WHERE driver_id = v_driver_id
+    AND created_at >= p_date::timestamptz
+    AND created_at <  (p_date + INTERVAL '1 day')::timestamptz;
+
+  IF v_has_prev_rec THEN
     v_opening_coin := v_prev_rec.actual_coin_balance;
     v_opening_cash := v_prev_rec.actual_cash_balance;
   ELSE
-    -- No previous confirmed reconciliation; use driver's current running balance
-    -- This handles the first-ever reconciliation correctly when coins were topped up.
-    SELECT
-      COALESCE(d.coin_balance, 0),
-      COALESCE(d.cash_balance, 0)
-    INTO
-      v_opening_coin,
-      v_opening_cash
-    FROM public.drivers d
-    WHERE d.id = v_driver_id;
+    -- No previous confirmed reconciliation.
+    -- drivers.coin_balance/cash_balance already include today's ledger activity,
+    -- so subtract today's delta to derive the true opening (start-of-day) balance.
+    -- This avoids double-counting today's transactions.
+    v_opening_coin := COALESCE(v_driver.coin_balance, 0) - v_day_coin_delta;
+    v_opening_cash := COALESCE(v_driver.cash_balance, 0) - v_day_cash_delta;
   END IF;
 
   -- Aggregate from task_settlements for the day.
-  -- NOTE: task_settlements is filtered by task_date while driver_fund_ledger (below)
+  -- NOTE: task_settlements is filtered by task_date while driver_fund_ledger (above)
   -- is filtered by created_at. This assumes settlements are recorded on the same
   -- calendar day as the task. If settlements are backdated, these summary totals
   -- may not perfectly match the theoretical balance calculation. The theoretical
@@ -1160,15 +1183,6 @@ BEGIN
   FROM public.driver_fund_ledger
   WHERE driver_id = v_driver_id
     AND txn_type = 'expense_payment'
-    AND created_at >= p_date::timestamptz
-    AND created_at <  (p_date + INTERVAL '1 day')::timestamptz;
-
-  -- Theoretical balance from ledger (accounts for ALL transactions, not just tasks).
-  -- Use range comparison instead of created_at::date for index efficiency.
-  SELECT COALESCE(SUM(coin_amount), 0), COALESCE(SUM(cash_amount), 0)
-  INTO v_day_coin_delta, v_day_cash_delta
-  FROM public.driver_fund_ledger
-  WHERE driver_id = v_driver_id
     AND created_at >= p_date::timestamptz
     AND created_at <  (p_date + INTERVAL '1 day')::timestamptz;
 
