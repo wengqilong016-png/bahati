@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabase';
+import { fmtCurrency } from '../lib/format';
 
 interface DashboardSummary {
   todayRevenue: number;
@@ -57,10 +58,6 @@ function KpiCard({ title, value, icon, color, href }: {
     return <Link to={href} style={{ textDecoration: 'none' }}>{content}</Link>;
   }
   return content;
-}
-
-function fmtCurrency(n: number): string {
-  return `IDR ${n.toLocaleString('id-ID')}`;
 }
 
 export function DashboardPage() {
@@ -222,16 +219,16 @@ export function DashboardPage() {
             <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: '#333' }}>快捷入口</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
               {[
-                { label: '司机管理', href: '/drivers' },
-                { label: '商家管理', href: '/merchants' },
-                { label: '机器管理', href: '/machines' },
-                { label: '审批中心', href: '/approvals' },
-                { label: '报表中心', href: '/reports' },
-                { label: '地图概览', href: '/map' },
+                { label: '司机管理', to: '/drivers' },
+                { label: '商家管理', to: '/merchants' },
+                { label: '机器管理', to: '/machines' },
+                { label: '审批中心', to: '/approvals' },
+                { label: '报表中心', to: '/reports' },
+                { label: '地图概览', to: '/map' },
               ].map(link => (
                 <Link
-                  key={link.href}
-                  to={link.href}
+                  key={link.to}
+                  to={link.to}
                   style={{
                     padding: '8px 14px',
                     background: '#e8f0fe',

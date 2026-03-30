@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { fmtCurrency, fmtPercent } from '../lib/format';
 
 interface Merchant {
   id: string;
@@ -14,9 +15,8 @@ interface Merchant {
   created_at: string;
 }
 
-interface KioskCount {
+interface KioskRow {
   merchant_id: string;
-  count: number;
 }
 
 export function MerchantsPage() {
@@ -49,7 +49,7 @@ export function MerchantsPage() {
 
       // Count kiosks per merchant
       const counts: Record<string, number> = {};
-      for (const k of (kiosksRes.data ?? []) as KioskCount[]) {
+      for (const k of (kiosksRes.data ?? []) as KioskRow[]) {
         counts[k.merchant_id] = (counts[k.merchant_id] ?? 0) + 1;
       }
       setKioskCounts(counts);
@@ -65,14 +65,6 @@ export function MerchantsPage() {
     if (filter === 'has_debt') return Number(m.debt_balance) > 0;
     return true;
   });
-
-  function fmtCurrency(n: number): string {
-    return `IDR ${n.toLocaleString('id-ID')}`;
-  }
-
-  function fmtPercent(n: number): string {
-    return `${(n * 100).toFixed(1)}%`;
-  }
 
   return (
     <div style={{ padding: '20px 16px', maxWidth: 800 }}>

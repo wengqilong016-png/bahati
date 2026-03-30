@@ -161,7 +161,7 @@ export function NavSidebar() {
             boxShadow: '0 -4px 16px rgba(0,0,0,0.08)',
             padding: '12px 16px',
           }}>
-            {navItems.slice(5).map(item => {
+            {navItems.slice(bottomNavItems.length).map(item => {
               const isActive = location.pathname === item.to;
               return (
                 <NavLink

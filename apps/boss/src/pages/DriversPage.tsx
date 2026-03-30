@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { fmtCurrency } from '../lib/format';
 
 interface Driver {
   id: string;
@@ -66,10 +67,6 @@ export function DriversPage() {
     if (filter === 'inactive') return !d.is_active;
     return true;
   });
-
-  function fmtCurrency(n: number): string {
-    return `IDR ${n.toLocaleString('id-ID')}`;
-  }
 
   return (
     <div style={{ padding: '20px 16px', maxWidth: 800 }}>

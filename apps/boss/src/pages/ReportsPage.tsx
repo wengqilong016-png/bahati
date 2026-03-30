@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { fmtCurrency } from '../lib/format';
 
 interface DailyReport {
   date: string;
@@ -75,10 +76,6 @@ export function ReportsPage() {
     void fetchReport();
     return () => { cancelled = true; };
   }, [days]);
-
-  function fmtCurrency(n: number): string {
-    return `IDR ${n.toLocaleString('id-ID')}`;
-  }
 
   // Totals
   const totals = reports.reduce(
