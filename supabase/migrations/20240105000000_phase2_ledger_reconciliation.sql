@@ -421,6 +421,8 @@ DECLARE
   v_gross_revenue   NUMERIC(14,2);
   v_dividend_amount NUMERIC(14,2);
   v_settlement_id   UUID;
+  v_orig_coin       NUMERIC(14,2);
+  v_orig_cash       NUMERIC(14,2);
 BEGIN
   -- Validate inputs
   IF p_dividend_method NOT IN ('cash', 'retained') THEN
@@ -467,6 +469,9 @@ BEGIN
 
   -- ===== BALANCE PRE-VALIDATION =====
   -- Simulate all balance changes in memory to validate before any writes.
+  -- Save original balances so we can replay step-by-step for ledger snapshots.
+  v_orig_coin := v_driver.coin_balance;
+  v_orig_cash := v_driver.cash_balance;
 
   -- After coin collection
   v_driver.coin_balance := v_driver.coin_balance + v_gross_revenue;
@@ -513,11 +518,9 @@ BEGIN
   ) RETURNING id INTO v_settlement_id;
 
   -- ===== DRIVER FUND LEDGER =====
-  -- Reset driver balances to pre-validation state for step-by-step ledger inserts
-  -- (re-fetch the locked row values)
-  SELECT coin_balance, cash_balance
-  INTO v_driver.coin_balance, v_driver.cash_balance
-  FROM public.drivers WHERE id = v_task.driver_id;
+  -- Restore original balances to replay step-by-step for accurate ledger snapshots
+  v_driver.coin_balance := v_orig_coin;
+  v_driver.cash_balance := v_orig_cash;
 
   -- 1) Coin collection: driver picks up all coins from the machine
   v_driver.coin_balance := v_driver.coin_balance + v_gross_revenue;
@@ -1128,8 +1131,9 @@ BEGIN
   v_total_coins_coll := v_total_gross;
   v_total_cash_exch  := v_total_coins_exch;
 
-  -- Total expense from driver_fund_ledger (single authoritative source for all expense_payment entries)
-  SELECT COALESCE(SUM(ABS(cash_amount)), 0)
+  -- Total expense from driver_fund_ledger (single authoritative source for all expense_payment entries).
+  -- cash_amount is stored as negative for expenses; negate the sum to get a positive total.
+  SELECT COALESCE(-SUM(cash_amount), 0)
   INTO v_total_expense
   FROM public.driver_fund_ledger
   WHERE driver_id = v_driver_id
