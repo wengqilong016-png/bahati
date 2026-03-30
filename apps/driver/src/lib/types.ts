@@ -19,6 +19,15 @@ export type TaskType =
 
 export type ResetRequestStatus = 'pending' | 'approved' | 'rejected';
 
+/* ---------- Geolocation ---------- */
+
+export interface GeoPoint {
+  lat: number;
+  lng: number;
+  accuracy: number;
+  captured_at: string;
+}
+
 /* ---------- Core domain ---------- */
 
 export interface Driver {
@@ -42,6 +51,8 @@ export interface Kiosk {
   serial_number: string;
   status: KioskStatus;
   last_certified_at: string | null;
+  /** Cumulative score tracked on the kiosk */
+  current_score: number;
   created_at: string;
 }
 
@@ -54,8 +65,10 @@ export interface KioskOnboardingRecord {
   merchant_address: string;
   merchant_contact: string;
   serial_number: string;
-  photo_uri: string | null;
+  /** Required – base64 data-URI of certification photo */
+  photo_uri: string;
   notes: string;
+  geo: GeoPoint | null;
   created_at: string;
   sync_status: SyncStatus;
 }
@@ -66,8 +79,13 @@ export interface Task {
   driver_id: string;
   task_type: TaskType;
   amount: number | null;
+  /** current_score must be > last_recorded_score; enforced at capture time */
+  current_score: number | null;
+  last_recorded_score: number | null;
   notes: string;
+  /** Optional photo – base64 data-URI */
   photo_uri: string | null;
+  geo: GeoPoint | null;
   created_at: string;
   sync_status: SyncStatus;
 }
@@ -77,8 +95,11 @@ export interface ScoreResetRequest {
   kiosk_id: string;
   driver_id: string;
   reason: string;
+  /** Optional evidence photo */
   photo_uri: string | null;
+  current_score: number | null;
   status: ResetRequestStatus;
+  geo: GeoPoint | null;
   created_at: string;
   sync_status: SyncStatus;
 }

@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { saveOnboarding } from '../lib/actions';
+import { captureLocation } from '../lib/geo';
+import PhotoCapture from '../components/PhotoCapture';
 
 interface OnboardingPageProps {
   driverId: string;
@@ -10,6 +12,7 @@ export default function OnboardingPage({ driverId }: OnboardingPageProps) {
   const [merchantName, setMerchantName] = useState('');
   const [merchantAddress, setMerchantAddress] = useState('');
   const [merchantContact, setMerchantContact] = useState('');
+  const [photoUri, setPhotoUri] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -22,6 +25,12 @@ export default function OnboardingPage({ driverId }: OnboardingPageProps) {
     setSuccess(false);
 
     try {
+      if (!photoUri) {
+        throw new Error('入网认证照片为必填项');
+      }
+
+      const geo = await captureLocation();
+
       await saveOnboarding({
         kiosk_id: '', // Will be assigned by backend
         driver_id: driverId,
@@ -30,14 +39,16 @@ export default function OnboardingPage({ driverId }: OnboardingPageProps) {
         merchant_address: merchantAddress,
         merchant_contact: merchantContact,
         serial_number: serialNumber,
-        photo_uri: null,
+        photo_uri: photoUri,
         notes,
+        geo,
       });
       setSuccess(true);
       setSerialNumber('');
       setMerchantName('');
       setMerchantAddress('');
       setMerchantContact('');
+      setPhotoUri('');
       setNotes('');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save');
@@ -101,6 +112,13 @@ export default function OnboardingPage({ driverId }: OnboardingPageProps) {
           />
         </label>
 
+        <PhotoCapture
+          value={photoUri}
+          onChange={setPhotoUri}
+          required
+          label="认证照片（必填）"
+        />
+
         <label style={labelStyle}>
           备注
           <textarea
@@ -111,7 +129,7 @@ export default function OnboardingPage({ driverId }: OnboardingPageProps) {
           />
         </label>
 
-        <button type="submit" disabled={saving} style={buttonStyle}>
+        <button type="submit" disabled={saving || !photoUri} style={buttonStyle}>
           {saving ? '保存中…' : '提交入网'}
         </button>
       </form>

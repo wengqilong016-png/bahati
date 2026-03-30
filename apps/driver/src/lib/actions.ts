@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { db } from './db';
+import { validateScoreIncrease } from './validation';
 import type {
   KioskOnboardingRecord,
   Task,
@@ -9,10 +10,15 @@ import type {
 
 /**
  * Save a kiosk onboarding record locally and enqueue it for sync.
+ * Photo is required — caller must ensure photo_uri is a non-empty string.
  */
 export async function saveOnboarding(
   data: Omit<KioskOnboardingRecord, 'id' | 'created_at' | 'sync_status'>,
 ): Promise<KioskOnboardingRecord> {
+  if (!data.photo_uri) {
+    throw new Error('入网认证照片为必填项');
+  }
+
   const record: KioskOnboardingRecord = {
     ...data,
     id: uuidv4(),
@@ -37,10 +43,16 @@ export async function saveOnboarding(
 
 /**
  * Save a daily task locally and enqueue it for sync.
+ *
+ * Score validation: if current_score and last_recorded_score are provided,
+ * current_score must be strictly greater than last_recorded_score.
+ * Otherwise the driver must use the score-reset-request flow.
  */
 export async function saveTask(
   data: Omit<Task, 'id' | 'created_at' | 'sync_status'>,
 ): Promise<Task> {
+  validateScoreIncrease(data.current_score, data.last_recorded_score);
+
   const record: Task = {
     ...data,
     id: uuidv4(),

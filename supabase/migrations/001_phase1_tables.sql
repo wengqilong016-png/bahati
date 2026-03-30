@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS kiosks (
   serial_number TEXT UNIQUE NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending_onboarding'
     CHECK (status IN ('pending_onboarding','active','needs_recertification','deactivated')),
+  current_score NUMERIC NOT NULL DEFAULT 0,
   last_certified_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -39,8 +40,9 @@ CREATE TABLE IF NOT EXISTS kiosk_onboarding_records (
   merchant_address TEXT NOT NULL DEFAULT '',
   merchant_contact TEXT NOT NULL DEFAULT '',
   serial_number TEXT NOT NULL,
-  photo_uri TEXT,
+  photo_uri TEXT NOT NULL,               -- certification photo is required
   notes TEXT NOT NULL DEFAULT '',
+  geo JSONB,                             -- {lat, lng, accuracy, captured_at}
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -52,8 +54,11 @@ CREATE TABLE IF NOT EXISTS tasks (
   task_type TEXT NOT NULL
     CHECK (task_type IN ('collection','restock','cleaning','inspection','repair')),
   amount NUMERIC,
+  current_score NUMERIC,                 -- current_score must be > last_recorded_score
+  last_recorded_score NUMERIC,
   notes TEXT NOT NULL DEFAULT '',
   photo_uri TEXT,
+  geo JSONB,                             -- {lat, lng, accuracy, captured_at}
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -64,10 +69,16 @@ CREATE TABLE IF NOT EXISTS score_reset_requests (
   driver_id UUID REFERENCES drivers(id) NOT NULL,
   reason TEXT NOT NULL,
   photo_uri TEXT,
+  current_score NUMERIC,
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending','approved','rejected')),
+  geo JSONB,                             -- {lat, lng, accuracy, captured_at}
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Score validation: current_score must be > last_recorded_score when both are set
+ALTER TABLE tasks ADD CONSTRAINT chk_score_increase
+  CHECK (current_score IS NULL OR last_recorded_score IS NULL OR current_score > last_recorded_score);
 
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_tasks_driver ON tasks(driver_id, created_at DESC);
