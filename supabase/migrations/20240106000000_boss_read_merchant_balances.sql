@@ -20,7 +20,7 @@ $$;
 
 -- Boss-only read RPC for merchant balances
 CREATE OR REPLACE FUNCTION public.read_merchant_balances()
-RETURNS TABLE(merchant_id UUID, merchant_name TEXT, retained_balance NUMERIC, debt_balance NUMERIC)
+RETURNS TABLE(merchant_id UUID, merchant_name TEXT, phone TEXT, retained_balance NUMERIC, debt_balance NUMERIC)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
@@ -31,7 +31,7 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
   RETURN QUERY
-    SELECT m.id, m.name, m.retained_balance, m.debt_balance
+    SELECT m.id, m.name, m.phone, m.retained_balance, m.debt_balance
     FROM public.merchants m
     ORDER BY m.name;
 END;
