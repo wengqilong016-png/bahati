@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:capacitor": "tsc && vite build --mode capacitor",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cap": "cap",
+    "cap:sync": "npm run build:capacitor && npm exec --package @capacitor/cli@6.2.1 cap sync android",
+    "cap:add:android": "npm exec --package @capacitor/cli@6.2.1 cap add android"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
