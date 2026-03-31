@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import type { LocalTask, LocalScoreResetRequest, LocalKioskOnboarding, LocalKiosk } from '../lib/types';
+import { getTodayNairobi } from '../lib/utils';
 
 export function SummaryPage() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayNairobi();
 
   const [tasks, setTasks] = useState<(LocalTask & { kiosk?: LocalKiosk })[]>([]);
   const [resets, setResets] = useState<(LocalScoreResetRequest & { kiosk?: LocalKiosk })[]>([]);
