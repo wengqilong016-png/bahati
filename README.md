@@ -90,7 +90,7 @@ cd apps/driver
 npm run build:capacitor
 npm run cap:add:android    # first time only
 npm run cap:sync
-npm exec cap open android  # opens Android Studio → Build → Generate APK
+npm run cap open android  # opens Android Studio → Build → Generate APK
 ```
 
 ## Boss Dashboard (apps/boss)
