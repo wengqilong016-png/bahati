@@ -4,6 +4,7 @@ import { db } from '../lib/db';
 import { submitDailyReconciliation } from '../lib/reconciliation';
 import { pullReconciliations } from '../lib/sync';
 import { supabase } from '../lib/supabase';
+import type { LocalTask, LocalKiosk } from '../lib/types';
 
 function todayNairobi(): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -33,6 +34,18 @@ export function ReconciliationPage() {
         .first(),
     [today, refreshKey],
   );
+
+  // Today's settled tasks to display context for reconciliation
+  const todayTasks = useLiveQuery(
+    () => db.tasks.where('task_date').equals(today).toArray(),
+    [today, refreshKey],
+  );
+  const kiosks = useLiveQuery(() => db.kiosks.toArray(), []);
+  const kioskMap = new Map<string, LocalKiosk>(
+    (kiosks ?? []).map(k => [k.id, k]),
+  );
+  const settledTasks = (todayTasks ?? []).filter((t: LocalTask) => t.settlement_status === 'settled');
+  const pendingTasks = (todayTasks ?? []).filter((t: LocalTask) => t.settlement_status !== 'settled');
 
   const handleRefresh = async () => {
     setSyncing(true);
@@ -219,6 +232,61 @@ export function ReconciliationPage() {
           {syncing ? '同步中...' : '🔄 刷新'}
         </button>
       </div>
+
+      {/* Today's settlement summary — shows context before reconciliation */}
+      {settledTasks.length > 0 && (
+        <div
+          style={{
+            background: '#f0f7ff',
+            border: '1px solid #bbdefb',
+            borderRadius: 10,
+            padding: 16,
+            marginBottom: 16,
+          }}
+        >
+          <h3 style={{ margin: '0 0 10px', fontSize: 14, color: '#0066CC', fontWeight: 600 }}>
+            今日已结算任务（{settledTasks.length}）
+          </h3>
+          {settledTasks.map((t: LocalTask) => {
+            const k = kioskMap.get(t.kiosk_id);
+            const grossRevenue = t.gross_revenue ?? (t.score_before !== undefined
+              ? (t.current_score - t.score_before) * 200
+              : undefined);
+            return (
+              <div key={t.id} style={{ background: '#fff', borderRadius: 6, padding: 10, marginBottom: 6, border: '1px solid #e0e0e0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>
+                    {k?.serial_number ?? '—'} · {k?.merchant_name ?? '—'}
+                  </span>
+                  <span style={{ fontSize: 12, color: '#1e7e34', fontWeight: 600 }}>✅</span>
+                </div>
+                <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>
+                  分数: {t.score_before ?? '—'} → {t.current_score}
+                  {grossRevenue !== undefined && ` · 营业额: ¥${grossRevenue.toLocaleString()}`}
+                  {t.exchange_amount !== undefined && t.exchange_amount > 0 && ` · 换币: ¥${t.exchange_amount.toLocaleString()}`}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Warning if there are unsettled tasks */}
+      {pendingTasks.length > 0 && (
+        <div
+          style={{
+            background: '#fff3e0',
+            border: '1px solid #ffe082',
+            borderRadius: 8,
+            padding: 12,
+            marginBottom: 16,
+            fontSize: 13,
+            color: '#e65100',
+          }}
+        >
+          ⚠️ 今日还有 {pendingTasks.length} 个未结算任务。建议先完成所有结算再提交日结。
+        </div>
+      )}
 
       <div
         style={{

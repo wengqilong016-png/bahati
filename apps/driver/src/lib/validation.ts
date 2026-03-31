@@ -4,7 +4,7 @@
 
 /**
  * For a normal daily task, the reported current_score must be strictly
- * greater than the machine's last_recorded_score.
+ * greater than the kiosk's last_recorded_score.
  * If it isn't, the driver must file a score-reset request instead.
  */
 export function validateDailyTaskScore(

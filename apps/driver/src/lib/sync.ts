@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { db } from './db';
 import { retryPendingUploads } from './storage';
+import type { OnboardingType } from './types';
 
 const MAX_RETRIES = 3;
 
@@ -181,6 +182,133 @@ export async function pullReconciliations(): Promise<void> {
 }
 
 /**
+ * Pull score reset requests for the current driver from Supabase into local DB.
+ * Includes approval status so the driver can see whether their requests have been
+ * approved or rejected.
+ */
+export async function pullScoreResetRequests(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from('score_reset_requests')
+    .select('id, kiosk_id, current_score, requested_new_score, reason, status, rejection_reason, reviewed_at, created_at')
+    .eq('driver_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('[sync] pullScoreResetRequests error:', error.message);
+    return;
+  }
+
+  if (!data) {
+    return;
+  }
+
+  // If the remote has no score reset requests for this driver, clear locally
+  // stored synced requests to avoid cross-account leakage and stale statuses.
+  if (data.length === 0) {
+    await db.score_reset_requests
+      .where('sync_status')
+      .equals('synced')
+      .delete();
+    return;
+  }
+
+  const rows = data.map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    kiosk_id: r.kiosk_id as string,
+    current_score: r.current_score as number,
+    requested_new_score: r.requested_new_score as number,
+    reason: r.reason as string,
+    status: r.status as 'pending' | 'approved' | 'rejected',
+    rejection_reason: (r.rejection_reason as string | null) ?? undefined,
+    reviewed_at: (r.reviewed_at as string | null) ?? undefined,
+    sync_status: 'synced' as const,
+    created_at: r.created_at as string,
+  }));
+
+  // Upsert current remote rows.
+  await db.score_reset_requests.bulkPut(rows);
+
+  // Remove any locally synced rows that no longer exist in the remote result set.
+  const remoteIdSet = new Set(rows.map((r) => r.id));
+  const localSyncedIds: string[] = (await db.score_reset_requests
+    .where('sync_status')
+    .equals('synced')
+    .primaryKeys()) as string[];
+  const staleIds = localSyncedIds.filter((id) => !remoteIdSet.has(id));
+  if (staleIds.length > 0) {
+    await db.score_reset_requests.bulkDelete(staleIds);
+  }
+}
+
+/**
+ * Pull kiosk onboarding records for the current driver from Supabase into local DB.
+ * Includes review status so the driver can see whether their submissions have been
+ * approved or rejected.
+ */
+export async function pullOnboardingRecords(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from('kiosk_onboarding_records')
+    .select('id, kiosk_id, onboarding_type, photo_urls, notes, status, reviewed_at, created_at')
+    .eq('driver_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('[sync] pullOnboardingRecords error:', error.message);
+    return;
+  }
+
+  if (!data) {
+    return;
+  }
+
+  // If the remote has no onboarding records for this driver, clear locally
+  // stored synced records to avoid cross-account leakage and stale statuses.
+  if (data.length === 0) {
+    await db.kiosk_onboarding_records
+      .where('sync_status')
+      .equals('synced')
+      .delete();
+    return;
+  }
+
+  const rows = data.map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    kiosk_id: r.kiosk_id as string,
+    onboarding_type: r.onboarding_type as OnboardingType,
+    photo_urls: (r.photo_urls as string[]) ?? [],
+    notes: (r.notes as string) ?? '',
+    status: r.status as 'pending' | 'approved' | 'rejected',
+    reviewed_at: (r.reviewed_at as string | null) ?? undefined,
+    sync_status: 'synced' as const,
+    created_at: r.created_at as string,
+  }));
+
+  // Upsert current remote rows.
+  await db.kiosk_onboarding_records.bulkPut(rows);
+
+  // Remove any locally synced records that are no longer present remotely.
+  const remoteIdSet = new Set(rows.map((r) => r.id));
+  const localSyncedIds: string[] = (await db.kiosk_onboarding_records
+    .where('sync_status')
+    .equals('synced')
+    .primaryKeys()) as string[];
+  const staleIds = localSyncedIds.filter((id) => !remoteIdSet.has(id));
+  if (staleIds.length > 0) {
+    await db.kiosk_onboarding_records.bulkDelete(staleIds);
+  }
+}
+
+/**
  * Process the local sync queue — push pending inserts / updates / deletes
  * to Supabase.
  *
@@ -315,6 +443,8 @@ export async function startSync(): Promise<void> {
     await pullKiosks();
     await pullTasks();
     await pullReconciliations();
+    await pullScoreResetRequests();
+    await pullOnboardingRecords();
     await retryPendingUploads();
     await processQueue();
   } catch (err) {

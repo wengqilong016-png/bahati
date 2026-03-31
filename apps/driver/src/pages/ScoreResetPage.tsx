@@ -12,6 +12,17 @@ export function ScoreResetPage() {
   const { user } = useAuth();
   const kiosk = useLiveQuery(() => db.kiosks.get(kioskId ?? ''), [kioskId]);
 
+  // Fetch existing score reset requests for this kiosk to show approval status
+  const existingRequests = useLiveQuery(
+    () => kioskId
+      ? db.score_reset_requests.where('kiosk_id').equals(kioskId).toArray()
+      : [],
+    [kioskId],
+  );
+  const latestRequest = existingRequests
+    ?.map(r => ({ ...r, status: r.status ?? 'pending' as const }))
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+
   const [newScore, setNewScore] = useState('0');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
@@ -36,6 +47,9 @@ export function ScoreResetPage() {
         requestedNewScore: parsedNewScore,
         reason,
       });
+      // Sync request to server so the approval flow can pick it up
+      const { processQueue } = await import('../lib/sync');
+      await processQueue();
       setSaved(true);
       setTimeout(() => navigate('/kiosks'), 1200);
     } catch (err) {
@@ -64,6 +78,23 @@ export function ScoreResetPage() {
           {kiosk.last_recorded_score}
         </p>
       </div>
+
+      {/* Existing request status from approval flow */}
+      {latestRequest && latestRequest.status === 'pending' && (
+        <div style={{ background: '#fff3e0', border: '1px solid #ffe082', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+          ⏳ 已有一条待审批的重置申请（{latestRequest.current_score} → {latestRequest.requested_new_score}），请等待审批结果。
+        </div>
+      )}
+      {latestRequest && latestRequest.status === 'approved' && (
+        <div style={{ background: '#e6f4ea', border: '1px solid #a5d6a7', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+          ✅ 上一次重置申请已通过（{latestRequest.current_score} → {latestRequest.requested_new_score}），分数已更新。
+        </div>
+      )}
+      {latestRequest && latestRequest.status === 'rejected' && (
+        <div style={{ background: '#fce8e6', border: '1px solid #ef9a9a', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+          ❌ 上一次重置申请被驳回{latestRequest.rejection_reason ? `：${latestRequest.rejection_reason}` : ''}
+        </div>
+      )}
 
       {saved && <div style={{ background: '#e6f4ea', color: '#1e7e34', padding: 12, borderRadius: 8, marginBottom: 16 }}>✅ Request submitted for approval</div>}
       {error && <div style={{ background: '#fce8e6', color: '#c62828', padding: 12, borderRadius: 8, marginBottom: 16 }}>{error}</div>}
