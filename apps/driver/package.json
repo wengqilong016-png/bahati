@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:capacitor": "tsc && vite build --mode capacitor",
     "preview": "vite preview"
   },
   "dependencies": {
