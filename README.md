@@ -26,6 +26,8 @@ Offline-first kiosk management system for field operations, financial settlement
 |-------|---------------|--------|
 | Phase 1 | `20240104000000_phase1_complete_schema.sql` | **Authority** — drivers, merchants, kiosks, tasks, kiosk\_onboarding\_records, score\_reset\_requests |
 | Phase 2 | `20240105000000_phase2_ledger_reconciliation.sql` | **Authority** — task\_settlements, driver\_fund\_ledger, merchant\_ledger, daily\_driver\_reconciliations, merchant\_balance\_snapshots |
+| Auth helpers | `20260331000100_auth_role_and_driver_profile.sql` | `current_user_role()` + `complete_driver_profile()` RPCs |
+| Auth backfill | `20260331000200_backfill_drivers_from_auth.sql` | Fills missing `drivers` rows for existing auth users |
 | Legacy | `20240101000000_initial_schema.sql` | **Historical only** — profiles/machines/daily\_tasks are dropped by Phase 1 |
 
 ### Old → New Name Mapping
@@ -152,6 +154,67 @@ npm run build
 - `drivers.coin_balance`, `drivers.cash_balance` — UPDATE revoked for `authenticated`
 - `merchants.retained_balance`, `merchants.debt_balance` — SELECT revoked for `authenticated`
 - Boss-only read access requires SECURITY DEFINER RPC or ledger/snapshot aggregation
+
+## Supabase Auth Configuration
+
+### Role Model
+| Role | Identified by | Has `public.drivers` row? |
+|------|--------------|--------------------------|
+| `driver` | row in `public.drivers` | ✅ Yes |
+| `boss` | `auth.users.raw_user_meta_data->>'role' = 'boss'` | ❌ No |
+
+> **Note:** `public.profiles` was **dropped** in Phase 1. All code must use `public.drivers` for driver identity and `auth.users.raw_user_meta_data` for role checks.  
+> Use `public.current_user_role()` (added by `20260331000100`) to get the caller's role in RLS policies and application code.
+
+### Creating a Boss Account
+Run `supabase/sql/create_boss_account.sql` in the SQL Editor after creating the user in the Auth UI.  
+Boss accounts intentionally have **no row** in `public.drivers`.
+
+### Callback / Redirect URL Settings (Supabase Auth → URL Configuration)
+
+These settings control where Supabase redirects users after email confirmation or password reset.
+
+#### Local Development
+Neither app fixes a Vite dev-server port, so Vite uses its default and auto-increments if the port is taken.
+
+| App | Default local URL | Auth callback URL |
+|-----|-------------------|-------------------|
+| Driver | `http://localhost:5173` | `http://localhost:5173/login` |
+| Boss | `http://localhost:5174` | `http://localhost:5174/login` |
+
+Configure in **Supabase Dashboard → Authentication → URL Configuration**:
+
+- **Site URL:** `http://localhost:5173`
+- **Additional Redirect URLs** (one per line):
+  ```
+  http://localhost:5173/login
+  http://localhost:5174/login
+  ```
+
+> If you only run one app at a time both may use port 5173; add both entries to the allow-list to cover both.
+
+#### Production
+Replace the local URLs with your actual deployed domains, e.g.:
+```
+https://driver.yourdomain.com/login
+https://boss.yourdomain.com/login
+```
+
+#### Using `emailRedirectTo` in Code
+When calling `supabase.auth.signUp()` with email confirmation enabled, pass `emailRedirectTo` explicitly:
+
+```ts
+await supabase.auth.signUp({
+  email,
+  password,
+  options: {
+    emailRedirectTo: 'http://localhost:5173/login', // driver
+    data: { role: 'driver', full_name: fullName },
+  },
+});
+```
+
+> If email confirmation is **disabled**, no redirect URL is needed for basic sign-in/sign-up flows. For internal-only deployments where users are invited by admins, disabling email confirmation reduces friction. If users self-register or require email verification, keep it enabled and configure `emailRedirectTo`.
 
 ## Default Seed Credentials (development only)
 
