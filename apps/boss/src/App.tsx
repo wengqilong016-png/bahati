@@ -5,7 +5,7 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DriversPage } from './pages/DriversPage';
 import { MerchantsPage } from './pages/MerchantsPage';
-import { KiosksPage } from './pages/MachinesPage';
+import { KiosksPage } from './pages/KiosksPage';
 import { ScoreResetApprovalsPage } from './pages/ScoreResetApprovalsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { MapOverviewPage } from './pages/MapOverviewPage';

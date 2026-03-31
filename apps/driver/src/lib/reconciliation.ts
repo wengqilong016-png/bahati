@@ -6,13 +6,10 @@ import { supabase } from './supabase';
 import { db } from './db';
 
 export interface ReconciliationParams {
-  p_driver_id: string;
-  p_reconciliation_date: string;
-  p_total_gross_revenue: number;
-  p_total_dividend: number;
-  p_total_exchange: number;
-  p_total_expense: number;
-  p_cash_in_hand: number;
+  p_driver_id?: string;
+  p_date: string;
+  p_actual_coin_balance: number;
+  p_actual_cash_balance: number;
   p_notes?: string;
 }
 
@@ -27,29 +24,20 @@ export async function submitDailyReconciliation(
 ): Promise<void> {
   const {
     p_driver_id,
-    p_reconciliation_date,
-    p_total_gross_revenue,
-    p_total_dividend,
-    p_total_exchange,
-    p_total_expense,
-    p_cash_in_hand,
+    p_date,
+    p_actual_coin_balance,
+    p_actual_cash_balance,
     p_notes,
   } = params;
 
-  if (p_total_gross_revenue < 0) throw new Error('总营业额不能为负数');
-  if (p_total_dividend < 0) throw new Error('总分红不能为负数');
-  if (p_total_exchange < 0) throw new Error('总换币金额不能为负数');
-  if (p_total_expense < 0) throw new Error('总支出不能为负数');
-  if (p_cash_in_hand < 0) throw new Error('手持现金不能为负数');
+  if (p_actual_coin_balance < 0) throw new Error('实际硬币余额不能为负数');
+  if (p_actual_cash_balance < 0) throw new Error('实际现金余额不能为负数');
 
   const { data, error } = await supabase.rpc('submit_daily_reconciliation', {
-    p_driver_id,
-    p_reconciliation_date,
-    p_total_gross_revenue,
-    p_total_dividend,
-    p_total_exchange,
-    p_total_expense,
-    p_cash_in_hand,
+    p_driver_id: p_driver_id ?? null,
+    p_date,
+    p_actual_coin_balance,
+    p_actual_cash_balance,
     p_notes: p_notes ?? null,
   });
 
@@ -58,18 +46,28 @@ export async function submitDailyReconciliation(
   }
 
   // Store locally so the UI can show submitted state offline
-  const reconciliationId =
-    (data as { id?: string } | null)?.id ?? crypto.randomUUID();
+  const reconciliationId = (data as string | null) ?? crypto.randomUUID();
 
   await db.reconciliations.put({
     id: reconciliationId,
-    driver_id: p_driver_id,
-    reconciliation_date: p_reconciliation_date,
-    total_gross_revenue: p_total_gross_revenue,
-    total_dividend: p_total_dividend,
-    total_exchange: p_total_exchange,
-    total_expense: p_total_expense,
-    cash_in_hand: p_cash_in_hand,
+    driver_id: p_driver_id ?? '',
+    reconciliation_date: p_date,
+    total_kiosks_visited: 0,
+    total_gross_revenue: 0,
+    total_coins_collected: 0,
+    total_coins_exchanged: 0,
+    total_cash_from_exchange: 0,
+    total_dividend_cash: 0,
+    total_dividend_retained: 0,
+    total_expense_amount: 0,
+    opening_coin_balance: 0,
+    opening_cash_balance: 0,
+    theoretical_coin_balance: 0,
+    theoretical_cash_balance: 0,
+    actual_coin_balance: p_actual_coin_balance,
+    actual_cash_balance: p_actual_cash_balance,
+    coin_variance: 0,
+    cash_variance: 0,
     notes: p_notes,
     status: 'submitted',
     created_at: new Date().toISOString(),
