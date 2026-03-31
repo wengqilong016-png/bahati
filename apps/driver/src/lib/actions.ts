@@ -16,6 +16,7 @@
 import { db } from './db';
 import type { OnboardingType } from './types';
 import { validateDailyTaskScore, validateScoreResetRequest } from './validation';
+import { getTodayNairobi } from './utils';
 
 // ---- Daily Task (Phase 1: public.tasks) ----
 
@@ -33,7 +34,7 @@ export async function saveDailyTask(input: SaveDailyTaskInput): Promise<void> {
   if (err) throw new Error(err);
 
   // Settlement guard: prevent overwriting a settled task for the same kiosk+date.
-  const taskDate = new Date().toISOString().slice(0, 10);
+  const taskDate = getTodayNairobi();
   const existingTask = await db.tasks
     .filter(t => t.kiosk_id === input.kioskId && t.task_date === taskDate)
     .first();
