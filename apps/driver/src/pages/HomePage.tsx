@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { getTodayNairobi } from '../lib/utils';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -14,7 +15,7 @@ export function HomePage() {
 
   useEffect(() => {
     let cancelled = false;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getTodayNairobi();
 
     async function load() {
       const kiosks = await db.kiosks.count();

@@ -13,6 +13,7 @@
 // ============================================================
 
 import { supabase } from './supabase';
+import { getTodayNairobi } from './utils';
 
 const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 const MAX_WIDTH = 1920;
@@ -184,8 +185,8 @@ export async function uploadTaskPhoto(file: File, taskId: string): Promise<strin
   } = await supabase.auth.getUser();
   if (!user) throw new Error('未登录，无法上传照片');
 
-  // Use UTC to match task_date written by saveDailyTask()
-  const taskDate = new Date().toISOString().slice(0, 10);
+  // Use Africa/Nairobi date to match task_date written by saveDailyTask()
+  const taskDate = getTodayNairobi();
 
   return uploadFileToBucket(file, 'task-photos', compressed => {
     const ext = compressed.name.split('.').pop() ?? 'jpg';
