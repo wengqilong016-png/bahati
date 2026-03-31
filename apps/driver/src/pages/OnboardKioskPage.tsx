@@ -15,6 +15,12 @@ export function OnboardKioskPage() {
   const { user } = useAuth();
   const kiosks = useLiveQuery(() => db.kiosks.toArray(), []);
 
+  // Existing onboarding records to show submission status
+  const onboardingRecords = useLiveQuery(
+    () => db.kiosk_onboarding_records.toArray(),
+    [],
+  );
+
   // Pre-generate a stable ID for this onboarding session's storage path
   const onboardingIdRef = useRef<string>(crypto.randomUUID());
 
@@ -52,6 +58,9 @@ export function OnboardKioskPage() {
         photoUrls: photos,
         notes,
       });
+      // Sync to push record to server
+      const { processQueue } = await import('../lib/sync');
+      await processQueue();
       setSaved(true);
       setTimeout(() => navigate('/home'), 1200);
     } catch (err) {
@@ -96,6 +105,42 @@ export function OnboardKioskPage() {
       {error && (
         <div style={{ background: '#fce8e6', color: '#c62828', padding: 12, borderRadius: 8, marginBottom: 16 }}>
           {error}
+        </div>
+      )}
+
+      {/* Show recent onboarding records with review status */}
+      {onboardingRecords && onboardingRecords.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={{ margin: '0 0 8px', fontSize: 14, color: '#555', fontWeight: 600 }}>
+            Recent Submissions
+          </h3>
+          {onboardingRecords
+            .sort((a, b) => b.created_at.localeCompare(a.created_at))
+            .slice(0, 5)
+            .map(rec => {
+              const k = kiosks?.find(kk => kk.id === rec.kiosk_id);
+              const statusColor = rec.status === 'approved' ? '#1e7e34'
+                : rec.status === 'rejected' ? '#c62828' : '#e65100';
+              const statusBg = rec.status === 'approved' ? '#e6f4ea'
+                : rec.status === 'rejected' ? '#fce8e6' : '#fff3e0';
+              const statusLabel = rec.status === 'approved' ? '✅ Approved'
+                : rec.status === 'rejected' ? '❌ Rejected' : '⏳ Pending';
+              return (
+                <div key={rec.id} style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, padding: 10, marginBottom: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>
+                      {k?.serial_number ?? rec.kiosk_id.slice(0, 8)} · {rec.onboarding_type}
+                    </span>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: statusBg, color: statusColor }}>
+                      {statusLabel}
+                    </span>
+                  </div>
+                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#999' }}>
+                    {new Date(rec.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              );
+            })}
         </div>
       )}
 

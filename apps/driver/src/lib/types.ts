@@ -62,6 +62,9 @@ export interface LocalScoreResetRequest {
   current_score: number;
   requested_new_score: number;
   reason: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  rejection_reason?: string;
+  reviewed_at?: string;
   sync_status: SyncStatus;
   created_at: string;
 }
@@ -76,6 +79,8 @@ export interface LocalKioskOnboarding {
   onboarding_type: OnboardingType;
   photo_urls: string[];
   notes: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  reviewed_at?: string;
   sync_status: SyncStatus;
   created_at: string;
 }

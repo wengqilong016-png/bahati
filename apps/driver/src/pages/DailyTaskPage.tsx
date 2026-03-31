@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { validateDailyTaskScore } from '../lib/validation';
 import { saveDailyTask } from '../lib/actions';
 import { uploadTaskPhoto } from '../lib/storage';
+import { processQueue, pullTasks } from '../lib/sync';
 
 export function DailyTaskPage() {
   const { kioskId } = useParams<{ kioskId: string }>();
@@ -56,6 +57,10 @@ export function DailyTaskPage() {
         photoUrls: photos,
         notes,
       });
+      // Sync: push task to server (triggers compute score_before, dividend_rate_snapshot),
+      // then pull enriched data back so SettlementPage has settlement fields.
+      await processQueue();
+      await pullTasks();
       setSaved(true);
       setTimeout(() => navigate('/settlement'), 1200);
     } catch (err) {
