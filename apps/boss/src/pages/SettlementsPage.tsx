@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { DataTable, type Column } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
-import { useAuth } from '../hooks/useAuth';
 
 interface Reconciliation {
   id: string;
@@ -10,6 +9,9 @@ interface Reconciliation {
   reconciliation_date: string;
   total_kiosks_visited: number;
   total_gross_revenue: number;
+  total_expense_amount: number;
+  actual_coin_balance: number;
+  actual_cash_balance: number;
   notes: string | null;
   status: string;
   confirmed_at: string | null;
@@ -17,33 +19,44 @@ interface Reconciliation {
 }
 
 export function SettlementsPage() {
-  const { user } = useAuth();
   const [reconciliations, setReconciliations] = useState<Reconciliation[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const fetchReconciliations = async () => {
     setLoading(true);
     const { data, error: err } = await supabase
       .from('daily_driver_reconciliations')
-      .select('*, drivers(full_name)')
+      .select('id, driver_id, reconciliation_date, total_kiosks_visited, total_gross_revenue, total_expense_amount, actual_coin_balance, actual_cash_balance, notes, status, confirmed_at, drivers(full_name)')
       .order('reconciliation_date', { ascending: false });
 
-    if (err) setError(err.message);
-    else setReconciliations(data as Reconciliation[]);
+    if (err) {
+      setError(err.message);
+    } else {
+      setReconciliations(data as unknown as Reconciliation[]);
+      setError(null);
+    }
     setLoading(false);
   };
 
-  useEffect(() => { void fetchReconciliations(); }, []);
+  useEffect(() => {
+    void fetchReconciliations();
+  }, []);
 
   const handleConfirm = async (id: string) => {
-    if (!user) return;
-    const { error: err } = await supabase
-      .from('daily_driver_reconciliations')
-      .update({ status: 'confirmed', confirmed_by: user.id, confirmed_at: new Date().toISOString() })
-      .eq('id', id);
-    if (err) setError(err.message);
-    else void fetchReconciliations();
+    setConfirmingId(id);
+    const { error: err } = await supabase.rpc('confirm_daily_reconciliation', {
+      p_reconciliation_id: id,
+    });
+
+    if (err) {
+      setError(err.message);
+    } else {
+      setError(null);
+      void fetchReconciliations();
+    }
+    setConfirmingId(null);
   };
 
   const columns: Column<Record<string, unknown>>[] = [
@@ -63,6 +76,11 @@ export function SettlementsPage() {
       render: row => `IDR ${Number(row.total_gross_revenue).toLocaleString()}`,
     },
     {
+      key: 'total_expense_amount',
+      header: 'Expense',
+      render: row => `IDR ${Number(row.total_expense_amount).toLocaleString()}`,
+    },
+    {
       key: 'status',
       header: 'Status',
       render: row => <StatusBadge status={String(row.status)} />,
@@ -73,12 +91,25 @@ export function SettlementsPage() {
       width: '120px',
       render: row => {
         if (row.status !== 'submitted') return null;
+        const id = String(row.id);
+        const disabled = confirmingId === id;
+
         return (
           <button
-            onClick={() => void handleConfirm(String(row.id))}
-            style={{ padding: '5px 12px', background: '#1e7e34', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+            onClick={() => void handleConfirm(id)}
+            disabled={disabled}
+            style={{
+              padding: '5px 12px',
+              background: disabled ? '#9bbfa5' : '#1e7e34',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              cursor: disabled ? 'not-allowed' : 'pointer',
+              fontSize: 12,
+              fontWeight: 600,
+            }}
           >
-            Confirm
+            {disabled ? 'Confirming...' : 'Confirm'}
           </button>
         );
       },
@@ -91,9 +122,28 @@ export function SettlementsPage() {
     <div style={{ padding: 24 }}>
       <h2 style={{ margin: '0 0 20px', color: '#0066CC' }}>Daily Reconciliations</h2>
 
-      {error && <div style={{ background: '#fce8e6', color: '#c62828', padding: 12, borderRadius: 8, marginBottom: 16 }}>{error}</div>}
+      {error && (
+        <div
+          style={{
+            background: '#fce8e6',
+            color: '#c62828',
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 16,
+          }}
+        >
+          {error}
+        </div>
+      )}
 
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e0e0e0', overflow: 'hidden' }}>
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          border: '1px solid #e0e0e0',
+          overflow: 'hidden',
+        }}
+      >
         <DataTable
           columns={columns}
           rows={rows}
