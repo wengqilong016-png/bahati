@@ -32,7 +32,6 @@ AS $$
       WHEN EXISTS (
         SELECT 1 FROM public.drivers d WHERE d.id = u.id
       ) THEN 'driver'
-      WHEN u.raw_user_meta_data->>'role' = 'driver' THEN 'driver'
       ELSE NULL
     END
   FROM auth.users u
@@ -63,6 +62,16 @@ AS $$
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Not authenticated'
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- Boss accounts intentionally have no public.drivers row; reject explicitly.
+  IF EXISTS (
+    SELECT 1 FROM auth.users
+    WHERE id = auth.uid()
+      AND raw_user_meta_data->>'role' = 'boss'
+  ) THEN
+    RAISE EXCEPTION 'Boss accounts cannot have a drivers row'
       USING ERRCODE = '42501';
   END IF;
 
