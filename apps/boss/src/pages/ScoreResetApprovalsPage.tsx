@@ -49,7 +49,6 @@ export function ScoreResetApprovalsPage() {
     setProcessing(true);
     const { error: err } = await supabase.rpc('approve_score_reset', {
       p_request_id: id,
-      p_reviewer_id: user.id,
     });
     setProcessing(false);
     if (err) setError(err.message);
@@ -61,7 +60,6 @@ export function ScoreResetApprovalsPage() {
     setProcessing(true);
     const { error: err } = await supabase.rpc('reject_score_reset', {
       p_request_id: rejectId,
-      p_reviewer_id: user.id,
       p_reason: rejectReason,
     });
     setProcessing(false);
