@@ -12,6 +12,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Fall back to placeholder values so createClient never throws at startup.
 // All API calls will fail gracefully until real credentials are configured.
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseUrl || 'https://supabase.invalid',
   supabaseAnonKey || 'placeholder-anon-key',
 );
