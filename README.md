@@ -87,10 +87,10 @@ npm run dev
 
 ```bash
 cd apps/driver
-npm run build
-npx cap add android        # first time only
-npx cap sync android
-npx cap open android       # opens Android Studio → Build → Generate APK
+npm run build:capacitor
+npm run cap:add:android    # first time only
+npm run cap:sync
+npm run cap open android  # opens Android Studio → Build → Generate APK
 ```
 
 ## Boss Dashboard (apps/boss)
