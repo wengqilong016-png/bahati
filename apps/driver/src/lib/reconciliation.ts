@@ -48,9 +48,13 @@ export async function submitDailyReconciliation(
   // Store locally so the UI can show submitted state offline
   const reconciliationId = (data as string | null) ?? crypto.randomUUID();
 
+  if (!p_driver_id) {
+    throw new Error('driver_id is required to store reconciliation locally');
+  }
+
   await db.reconciliations.put({
     id: reconciliationId,
-    driver_id: p_driver_id ?? '',
+    driver_id: p_driver_id,
     reconciliation_date: p_date,
     total_kiosks_visited: 0,
     total_gross_revenue: 0,

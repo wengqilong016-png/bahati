@@ -170,10 +170,10 @@ export async function pullReconciliations(): Promise<void> {
       actual_cash_balance: r.actual_cash_balance as number,
       coin_variance: r.coin_variance as number,
       cash_variance: r.cash_variance as number,
-      notes: r.notes as string | undefined,
+      notes: (r.notes as string | null) ?? undefined,
       status: r.status as 'submitted' | 'confirmed',
-      confirmed_by: r.confirmed_by as string | undefined,
-      confirmed_at: r.confirmed_at as string | undefined,
+      confirmed_by: (r.confirmed_by as string | null) ?? undefined,
+      confirmed_at: (r.confirmed_at as string | null) ?? undefined,
       created_at: r.created_at as string,
     }));
     await db.reconciliations.bulkPut(rows);

@@ -15,7 +15,7 @@ interface Reconciliation {
   notes: string | null;
   status: string;
   confirmed_at: string | null;
-  drivers: { full_name: string | null }[] | null;
+  drivers: { full_name: string | null } | null;
 }
 
 export function SettlementsPage() {
@@ -34,7 +34,7 @@ export function SettlementsPage() {
     if (err) {
       setError(err.message);
     } else {
-      setReconciliations(data as Reconciliation[]);
+      setReconciliations(data as unknown as Reconciliation[]);
       setError(null);
     }
     setLoading(false);
@@ -66,7 +66,7 @@ export function SettlementsPage() {
       header: 'Driver',
       render: row => {
         const s = row as unknown as Reconciliation;
-        return s.drivers?.[0]?.full_name ?? '—';
+        return s.drivers?.full_name ?? '—';
       },
     },
     { key: 'total_kiosks_visited', header: 'Kiosks', width: '80px' },
