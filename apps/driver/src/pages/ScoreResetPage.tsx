@@ -20,7 +20,7 @@ export function ScoreResetPage() {
     [kioskId],
   );
   const latestRequest = existingRequests
-    ?.filter(r => r.status)
+    ?.map(r => ({ ...r, status: r.status ?? 'pending' as const }))
     .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
 
   const [newScore, setNewScore] = useState('0');

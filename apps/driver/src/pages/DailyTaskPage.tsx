@@ -61,6 +61,8 @@ export function DailyTaskPage() {
       // then pull enriched data back so SettlementPage has settlement fields.
       await processQueue();
       await pullTasks();
+      // Restore local-only fields that may have been clobbered by pullTasks()
+      await db.tasks.update(taskId, { photo_urls: photos, notes });
       setSaved(true);
       setTimeout(() => navigate('/settlement'), 1200);
     } catch (err) {

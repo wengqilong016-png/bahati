@@ -114,7 +114,7 @@ export function OnboardKioskPage() {
           <h3 style={{ margin: '0 0 8px', fontSize: 14, color: '#555', fontWeight: 600 }}>
             Recent Submissions
           </h3>
-          {onboardingRecords
+          {[...onboardingRecords]
             .sort((a, b) => b.created_at.localeCompare(a.created_at))
             .slice(0, 5)
             .map(rec => {

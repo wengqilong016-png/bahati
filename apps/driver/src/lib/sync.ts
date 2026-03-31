@@ -203,20 +203,45 @@ export async function pullScoreResetRequests(): Promise<void> {
     return;
   }
 
-  if (data && data.length > 0) {
-    const rows = data.map((r: Record<string, unknown>) => ({
-      id: r.id as string,
-      kiosk_id: r.kiosk_id as string,
-      current_score: r.current_score as number,
-      requested_new_score: r.requested_new_score as number,
-      reason: r.reason as string,
-      status: r.status as 'pending' | 'approved' | 'rejected',
-      rejection_reason: (r.rejection_reason as string | null) ?? undefined,
-      reviewed_at: (r.reviewed_at as string | null) ?? undefined,
-      sync_status: 'synced' as const,
-      created_at: r.created_at as string,
-    }));
-    await db.score_reset_requests.bulkPut(rows);
+  if (!data) {
+    return;
+  }
+
+  // If the remote has no score reset requests for this driver, clear locally
+  // stored synced requests to avoid cross-account leakage and stale statuses.
+  if (data.length === 0) {
+    await db.score_reset_requests
+      .where('sync_status')
+      .equals('synced')
+      .delete();
+    return;
+  }
+
+  const rows = data.map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    kiosk_id: r.kiosk_id as string,
+    current_score: r.current_score as number,
+    requested_new_score: r.requested_new_score as number,
+    reason: r.reason as string,
+    status: r.status as 'pending' | 'approved' | 'rejected',
+    rejection_reason: (r.rejection_reason as string | null) ?? undefined,
+    reviewed_at: (r.reviewed_at as string | null) ?? undefined,
+    sync_status: 'synced' as const,
+    created_at: r.created_at as string,
+  }));
+
+  // Upsert current remote rows.
+  await db.score_reset_requests.bulkPut(rows);
+
+  // Remove any locally synced rows that no longer exist in the remote result set.
+  const remoteIdSet = new Set(rows.map((r) => r.id));
+  const localSyncedIds: string[] = (await db.score_reset_requests
+    .where('sync_status')
+    .equals('synced')
+    .primaryKeys()) as string[];
+  const staleIds = localSyncedIds.filter((id) => !remoteIdSet.has(id));
+  if (staleIds.length > 0) {
+    await db.score_reset_requests.bulkDelete(staleIds);
   }
 }
 
@@ -242,19 +267,44 @@ export async function pullOnboardingRecords(): Promise<void> {
     return;
   }
 
-  if (data && data.length > 0) {
-    const rows = data.map((r: Record<string, unknown>) => ({
-      id: r.id as string,
-      kiosk_id: r.kiosk_id as string,
-      onboarding_type: r.onboarding_type as OnboardingType,
-      photo_urls: (r.photo_urls as string[]) ?? [],
-      notes: (r.notes as string) ?? '',
-      status: r.status as 'pending' | 'approved' | 'rejected',
-      reviewed_at: (r.reviewed_at as string | null) ?? undefined,
-      sync_status: 'synced' as const,
-      created_at: r.created_at as string,
-    }));
-    await db.kiosk_onboarding_records.bulkPut(rows);
+  if (!data) {
+    return;
+  }
+
+  // If the remote has no onboarding records for this driver, clear locally
+  // stored synced records to avoid cross-account leakage and stale statuses.
+  if (data.length === 0) {
+    await db.kiosk_onboarding_records
+      .where('sync_status')
+      .equals('synced')
+      .delete();
+    return;
+  }
+
+  const rows = data.map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    kiosk_id: r.kiosk_id as string,
+    onboarding_type: r.onboarding_type as OnboardingType,
+    photo_urls: (r.photo_urls as string[]) ?? [],
+    notes: (r.notes as string) ?? '',
+    status: r.status as 'pending' | 'approved' | 'rejected',
+    reviewed_at: (r.reviewed_at as string | null) ?? undefined,
+    sync_status: 'synced' as const,
+    created_at: r.created_at as string,
+  }));
+
+  // Upsert current remote rows.
+  await db.kiosk_onboarding_records.bulkPut(rows);
+
+  // Remove any locally synced records that are no longer present remotely.
+  const remoteIdSet = new Set(rows.map((r) => r.id));
+  const localSyncedIds: string[] = (await db.kiosk_onboarding_records
+    .where('sync_status')
+    .equals('synced')
+    .primaryKeys()) as string[];
+  const staleIds = localSyncedIds.filter((id) => !remoteIdSet.has(id));
+  if (staleIds.length > 0) {
+    await db.kiosk_onboarding_records.bulkDelete(staleIds);
   }
 }
 
