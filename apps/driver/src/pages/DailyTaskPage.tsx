@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { validateDailyTaskScore } from '../lib/validation';
 import { saveDailyTask } from '../lib/actions';
 import { uploadTaskPhoto } from '../lib/storage';
+import { processQueue, pullTasks } from '../lib/sync';
 import { getTodayNairobi } from '../lib/utils';
 
 export function DailyTaskPage() {
