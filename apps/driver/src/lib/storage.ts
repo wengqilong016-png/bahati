@@ -181,7 +181,7 @@ async function uploadFileToBucket(
  * Bucket:  task-photos
  * Path:    {driver_id}/{task_date}/{taskId}/{timestamp}.{ext}
  *
- * task_date uses UTC (same as saveDailyTask) so the folder always matches the record.
+ * task_date uses Africa/Nairobi time (same as saveDailyTask) so the folder always matches the record.
  * Returns the public URL of the uploaded image.
  */
 export async function uploadTaskPhoto(file: File, taskId: string): Promise<string> {
