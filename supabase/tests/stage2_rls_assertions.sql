@@ -79,7 +79,7 @@ BEGIN
     WHEN insufficient_privilege THEN
       RAISE NOTICE 'PASS: direct update on drivers.coin_balance denied';
   END;
-END
+END;
 $$;
 
 DO $$
@@ -91,7 +91,7 @@ BEGIN
     WHEN insufficient_privilege THEN
       RAISE NOTICE 'PASS: direct select on merchants.retained_balance/debt_balance denied';
   END;
-END
+END;
 $$;
 
 -- Driver can read own balance via RPC
