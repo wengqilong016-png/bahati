@@ -146,7 +146,7 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
         {grossRevenue !== undefined && (
           <div style={{ marginBottom: 10 }}>
             <label style={labelStyle}>Gross Revenue (KES)</label>
-            <input readOnly value={`¥${grossRevenue.toLocaleString()}`} style={readonlyStyle} />
+            <input readOnly value={`KES ${grossRevenue.toLocaleString()}`} style={readonlyStyle} />
           </div>
         )}
         {task.dividend_rate_snapshot !== undefined && (
@@ -158,7 +158,7 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
         {dividendAmount !== undefined && (
           <div style={{ marginBottom: 10 }}>
             <label style={labelStyle}>Dividend Amount (KES)</label>
-            <input readOnly value={`¥${dividendAmount.toLocaleString()}`} style={readonlyStyle} />
+            <input readOnly value={`KES ${dividendAmount.toLocaleString()}`} style={readonlyStyle} />
           </div>
         )}
 
