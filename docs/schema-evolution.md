@@ -14,10 +14,11 @@
 
 并在 Phase2（`2024-01-05`）补齐：
 
-- `task_settlements`
-- `merchant_ledger`
-- `driver_fund_ledger`
-- `daily_driver_reconciliations`
+- `task_settlements` 
+- `merchant_ledger` 
+- `driver_fund_ledger` 
+- `daily_driver_reconciliations` 
+- `merchant_balance_snapshots`
 
 > 结论：从代码与迁移执行语义看，运行期 authoritative 集合为 `drivers/merchants/kiosks/tasks/kiosk_onboarding_records/score_reset_requests`（Phase1）+ Phase2 账本/日结扩展表。
 
