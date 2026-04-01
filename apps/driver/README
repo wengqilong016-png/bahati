@@ -1,5 +1,28 @@
 # Driver app deployment notes
 
+## Build and Capacitor commands
+
+Run commands inside `apps/driver`:
+
+- `npm ci`
+- `npm run build` (web build)
+- `npm run build:capacitor` (Capacitor-targeted web assets)
+- `npm run cap:add:android`
+- `npm run cap:sync`
+
+## Capacitor version constraints
+
+To avoid CLI/runtime drift, this app pins a single Capacitor major line:
+
+- `@capacitor/core`: `^6.0.0`
+- `@capacitor/android`: `^6.0.0`
+- `@capacitor/camera`: `^6.0.0`
+- `@capacitor/network`: `^6.0.0`
+- `@capacitor/cli`: `6.2.1`
+
+All `cap` scripts use local `npm exec cap` so `npm run cap`/`cap:sync`/`cap:add:android`
+resolve to the same pinned CLI source.
+
 ## Supabase Storage buckets are now migration-managed
 
 After applying migrations, you **do not need to create storage buckets manually**.

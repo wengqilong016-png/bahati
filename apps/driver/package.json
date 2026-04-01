@@ -8,9 +8,9 @@
     "build": "tsc && vite build",
     "build:capacitor": "tsc && vite build --mode capacitor",
     "preview": "vite preview",
-    "cap": "cap",
-    "cap:sync": "npm run build:capacitor && npm exec --package @capacitor/cli@6.2.1 cap sync android",
-    "cap:add:android": "npm exec --package @capacitor/cli@6.2.1 cap add android"
+    "cap": "npm exec cap",
+    "cap:sync": "npm run build:capacitor && npm exec cap sync android",
+    "cap:add:android": "npm exec cap add android"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "8.3.0",
+    "@capacitor/cli": "6.2.1",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.2.0",

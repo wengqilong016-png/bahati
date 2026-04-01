@@ -41,6 +41,12 @@ jobs:
         working-directory: apps/driver
         run: npm ci
 
+      - name: Check Capacitor CLI version
+        working-directory: apps/driver
+        run: |
+          npx cap --version
+          npm ls @capacitor/cli
+
       - name: Create .env file
         working-directory: apps/driver
         run: |
