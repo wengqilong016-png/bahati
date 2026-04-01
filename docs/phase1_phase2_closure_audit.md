@@ -279,3 +279,15 @@
 - `apps/boss/src/pages/DashboardPage.tsx`
 - `apps/driver/package.json`
 - `README.md`
+
+
+## 收尾集成差异（针对 Driver Wallet 建议路径）
+
+- `apps/driver/src/lib/sync.ts`：当前仅有 `pullKiosks/pullTasks/pullReconciliations/pullScoreResetRequests/pullOnboardingRecords`，**未实现** `pullDriverProfile()`。
+- `apps/driver/src/lib/db.ts`：当前 Dexie 到 v5，**未包含** `driver_profile` store；需要 version bump（建议 v6）。
+- `apps/driver/src/pages/HomePage.tsx` 与 `apps/driver/src/pages/ReconciliationPage.tsx`：当前无独立 Wallet Card 展示 `coin_balance/cash_balance + 最近 confirmed`。
+- 错误态方面：已有通用错误提示，但“离线 / 无权限 / 未初始化”三态的明确文案与统一重试按钮仍需补齐。
+- 验收流程建议：
+  1) 在线登录后触发主动同步，30 秒内 Wallet Card 出现最新余额；
+  2) 离线时显示缓存余额或“未同步”；
+  3) 权限不足时显示明确文案并可重试。
