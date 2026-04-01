@@ -67,7 +67,7 @@ export async function pullKiosks(): Promise<void> {
 
 /**
  * Pull today's tasks for the current driver from Supabase into local DB.
- * Uses Africa/Nairobi timezone to determine "today".
+ * Uses Africa/Dar_es_Salaam timezone to determine "today".
  */
 export async function pullTasks(): Promise<void> {
   const {
@@ -75,9 +75,9 @@ export async function pullTasks(): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) return;
 
-  // Determine today's date in Africa/Nairobi timezone
+  // Determine today's date in Africa/Dar_es_Salaam timezone
   const today = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Nairobi',
+    timeZone: 'Africa/Dar_es_Salaam',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -122,7 +122,7 @@ export async function pullTasks(): Promise<void> {
 
 /**
  * Pull today's reconciliation for the current driver from Supabase into local DB.
- * Uses Africa/Nairobi timezone to determine "today".
+ * Uses Africa/Dar_es_Salaam timezone to determine "today".
  */
 export async function pullReconciliations(): Promise<void> {
   const {
@@ -131,7 +131,7 @@ export async function pullReconciliations(): Promise<void> {
   if (!user) return;
 
   const today = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Nairobi',
+    timeZone: 'Africa/Dar_es_Salaam',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

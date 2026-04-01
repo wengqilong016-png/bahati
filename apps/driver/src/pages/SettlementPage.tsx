@@ -10,9 +10,9 @@ type DividendMethod = 'cash' | 'retained';
 
 // ---- helpers ----
 
-function todayNairobi(): string {
+function todayDarEsSalaam(): string {
   return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Nairobi',
+    timeZone: 'Africa/Dar_es_Salaam',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -234,7 +234,7 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
 // ---- Main page ----
 
 export function SettlementPage() {
-  const today = todayNairobi();
+  const today = todayDarEsSalaam();
   const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
   const [syncing, setSyncing] = useState(false);

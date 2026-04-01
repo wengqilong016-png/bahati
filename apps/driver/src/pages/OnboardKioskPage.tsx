@@ -258,7 +258,7 @@ export function OnboardKioskPage() {
                 type="tel"
                 value={merchantPhone}
                 onChange={e => setMerchantPhone(e.target.value)}
-                placeholder="e.g. +254700000000"
+                placeholder="e.g. +255700000000"
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
               />
             </div>
@@ -271,7 +271,7 @@ export function OnboardKioskPage() {
                 type="text"
                 value={merchantAddress}
                 onChange={e => setMerchantAddress(e.target.value)}
-                placeholder="e.g. Moi Avenue, Nairobi"
+                placeholder="e.g. Samora Avenue, Dar es Salaam"
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
               />
             </div>
