@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useConnectionStatus } from '../hooks/useConnectionStatus';
 
 export function LoginPage() {
   const { signIn } = useAuth();
@@ -9,6 +10,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const connStatus = useConnectionStatus();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -42,6 +44,31 @@ export function LoginPage() {
       }}>
         <h1 style={{ color: '#0066CC', margin: '0 0 8px', fontSize: 24 }}>SmartKiosk</h1>
         <p style={{ color: '#666', margin: '0 0 24px', fontSize: 14 }}>Driver App</p>
+
+        {/* Connection status badge – only shown for actionable error states */}
+        {(connStatus === 'config-error' || connStatus === 'network-error') && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 8,
+            background: connStatus === 'config-error' ? '#fce8e6' : '#fff3cd',
+            border: `1px solid ${connStatus === 'config-error' ? '#f5c6cb' : '#ffc107'}`,
+            borderRadius: 8,
+            padding: '10px 12px',
+            marginBottom: 20,
+            fontSize: 12,
+            color: connStatus === 'config-error' ? '#c62828' : '#856404',
+          }}>
+            <span style={{ fontSize: 16, lineHeight: 1 }}>
+              {connStatus === 'config-error' ? '🔴' : '🟠'}
+            </span>
+            <span>
+              {connStatus === 'config-error'
+                ? '后端配置缺失：请在部署平台将环境变量名称改为 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY。'
+                : '无法连接到服务器，请检查网络连接。'}
+            </span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 16 }}>

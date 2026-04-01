@@ -1,6 +1,21 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useConnectionStatus, type ConnectionStatus } from '../hooks/useConnectionStatus';
+
+const CONNECTION_COLORS: Record<ConnectionStatus, string> = {
+  connected: '#22c55e',
+  'config-error': '#ef4444',
+  'network-error': '#f97316',
+  checking: '#a3a3a3',
+};
+
+const CONNECTION_LABELS: Record<ConnectionStatus, string> = {
+  connected: '已连接',
+  'config-error': '配置错误',
+  'network-error': '网络错误',
+  checking: '连接中…',
+};
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: '📊' },
@@ -19,6 +34,9 @@ export function NavSidebar() {
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const connStatus = useConnectionStatus();
+  const dotColor = CONNECTION_COLORS[connStatus];
+  const connLabel = CONNECTION_LABELS[connStatus];
 
   const handleSignOut = async () => {
     await signOut();
@@ -44,6 +62,37 @@ export function NavSidebar() {
         <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap' }}>
           <h1 style={{ margin: 0, fontSize: 17, color: '#0066CC', fontWeight: 700 }}>SmartKiosk</h1>
           <p style={{ margin: '4px 0 0', fontSize: 11, color: '#999' }}>老板后台</p>
+          {/* Connection status indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8 }}>
+            <span style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: dotColor,
+              display: 'inline-block',
+              flexShrink: 0,
+              boxShadow: connStatus === 'connected' ? `0 0 0 2px ${dotColor}33` : 'none',
+            }} />
+            <span style={{ fontSize: 11, color: connStatus === 'connected' ? '#666' : dotColor, fontWeight: 500 }}>
+              {connLabel}
+            </span>
+          </div>
+          {/* Warn on misconfiguration */}
+          {connStatus === 'config-error' && (
+            <div style={{
+              marginTop: 8,
+              padding: '6px 8px',
+              background: '#fce8e6',
+              border: '1px solid #f5c6cb',
+              borderRadius: 6,
+              fontSize: 10,
+              color: '#c62828',
+              lineHeight: 1.4,
+              whiteSpace: 'normal',
+            }}>
+              环境变量未正确配置，请将变量名改为 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY。
+            </div>
+          )}
         </div>
 
         <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
