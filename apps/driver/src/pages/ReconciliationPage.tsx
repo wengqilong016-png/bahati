@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useMemo, FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { submitDailyReconciliation } from '../lib/reconciliation';
@@ -41,8 +41,9 @@ export function ReconciliationPage() {
     [today, refreshKey],
   );
   const kiosks = useLiveQuery(() => db.kiosks.toArray(), []);
-  const kioskMap = new Map<string, LocalKiosk>(
-    (kiosks ?? []).map(k => [k.id, k]),
+  const kioskMap = useMemo(
+    () => new Map<string, LocalKiosk>((kiosks ?? []).map(k => [k.id, k])),
+    [kiosks],
   );
   const settledTasks = (todayTasks ?? []).filter((t: LocalTask) => t.settlement_status === 'settled');
   const pendingTasks = (todayTasks ?? []).filter((t: LocalTask) => t.settlement_status !== 'settled');
@@ -190,13 +191,13 @@ export function ReconciliationPage() {
 
           <div style={{ fontSize: 14, color: '#444', lineHeight: 2 }}>
             <div>Date: {r.reconciliation_date}</div>
-            <div>Actual Coin Balance: KES {r.actual_coin_balance.toLocaleString()}</div>
-            <div>Actual Cash Balance: KES {r.actual_cash_balance.toLocaleString()}</div>
-            <div>Expected Coin Balance: KES {r.theoretical_coin_balance.toLocaleString()}</div>
-            <div>Expected Cash Balance: KES {r.theoretical_cash_balance.toLocaleString()}</div>
-            <div>Coin Variance: KES {r.coin_variance.toLocaleString()}</div>
-            <div>Cash Variance: KES {r.cash_variance.toLocaleString()}</div>
-            <div>Total Expenses Today: KES {r.total_expense_amount.toLocaleString()}</div>
+            <div>Actual Coin Balance: TZS {r.actual_coin_balance.toLocaleString()}</div>
+            <div>Actual Cash Balance: TZS {r.actual_cash_balance.toLocaleString()}</div>
+            <div>Expected Coin Balance: TZS {r.theoretical_coin_balance.toLocaleString()}</div>
+            <div>Expected Cash Balance: TZS {r.theoretical_cash_balance.toLocaleString()}</div>
+            <div>Coin Variance: TZS {r.coin_variance.toLocaleString()}</div>
+            <div>Cash Variance: TZS {r.cash_variance.toLocaleString()}</div>
+            <div>Total Expenses Today: TZS {r.total_expense_amount.toLocaleString()}</div>
             {r.notes && <div>Notes: {r.notes}</div>}
           </div>
         </div>
@@ -262,8 +263,8 @@ export function ReconciliationPage() {
                 </div>
                 <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>
                   Score: {t.score_before ?? '—'} → {t.current_score}
-                  {grossRevenue !== undefined && ` · Revenue: KES ${grossRevenue.toLocaleString()}`}
-                  {t.exchange_amount !== undefined && t.exchange_amount > 0 && ` · Exchange: KES ${t.exchange_amount.toLocaleString()}`}
+                  {grossRevenue !== undefined && ` · Revenue: TZS ${grossRevenue.toLocaleString()}`}
+                  {t.exchange_amount !== undefined && t.exchange_amount > 0 && ` · Exchange: TZS ${t.exchange_amount.toLocaleString()}`}
                 </div>
               </div>
             );
@@ -339,7 +340,7 @@ export function ReconciliationPage() {
           </div>
 
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>Actual Coin Balance (KES)</label>
+            <label style={labelStyle}>Actual Coin Balance (TZS)</label>
             <input
               type="number"
               min={0}
@@ -352,7 +353,7 @@ export function ReconciliationPage() {
           </div>
 
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>Actual Cash Balance (KES)</label>
+            <label style={labelStyle}>Actual Cash Balance (TZS)</label>
             <input
               type="number"
               min={0}

@@ -22,7 +22,7 @@ export function DailyTaskPage() {
     () => {
       if (!kioskId) return undefined;
       const today = getTodayDarEsSalaam();
-      return db.tasks.filter(t => t.kiosk_id === kioskId && t.task_date === today).first();
+      return db.tasks.where('[kiosk_id+task_date]').equals([kioskId, today]).first();
     },
     [kioskId],
   );

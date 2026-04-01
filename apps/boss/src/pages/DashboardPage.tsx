@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { fmtCurrency } from '../lib/format';
+import { getTodayDarEsSalaam } from '../lib/utils';
 import { colors, radius, shadow, font } from '../lib/theme';
 import { DashboardSkeleton } from '../components/Skeleton';
 
@@ -149,7 +150,7 @@ export function DashboardPage() {
     let cancelled = false;
 
     const fetchSummary = async () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getTodayDarEsSalaam();
 
       // Also fetch last 7 days revenue for sparkline
       const since = new Date();

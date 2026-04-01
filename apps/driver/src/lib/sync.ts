@@ -8,44 +8,32 @@ const MAX_RETRIES = 3;
 // ---- Module-level lock to prevent concurrent queue processing ----
 let processingQueue = false;
 
-/**
- * Pull kiosks assigned to the current driver from Supabase into local DB.
- * Joins merchants to denormalise merchant_name / merchant_contact for
- * offline display.
- */
-export async function pullKiosks(): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
+// ---- Internal pull implementations that accept a pre-fetched user ID ----
+// The exported functions call getUser() internally for standalone use.
+// startSync() calls getUser() once and passes it to avoid repeated round-trips.
 
+async function _pullKiosks(userId: string): Promise<void> {
   const { data, error } = await supabase
     .from('kiosks')
     .select(
       'id, serial_number, merchant_id, location_name, status, last_recorded_score, merchants(name, phone)',
     )
-    .eq('assigned_driver_id', user.id);
+    .eq('assigned_driver_id', userId);
 
   if (error) {
     console.error('[sync] pullKiosks error:', error.message);
     return;
   }
 
-  // Reconcile local kiosks store with the server response.
-  // Remove kiosks that are no longer assigned (e.g. after un-assignment).
   const remoteIds = new Set((data ?? []).map((k: Record<string, unknown>) => k.id as string));
   const localKiosks = await db.kiosks.toArray();
-  const staleIds = localKiosks
-    .map(k => k.id)
-    .filter(id => !remoteIds.has(id));
+  const staleIds = localKiosks.map(k => k.id).filter(id => !remoteIds.has(id));
   if (staleIds.length > 0) {
     await db.kiosks.bulkDelete(staleIds);
   }
 
   if (data && data.length > 0) {
-    // Flatten the nested merchants join into denormalised local fields
     const rows = data.map((k: Record<string, unknown>) => {
-      // Supabase FK join may return object or array depending on relationship cardinality
       const merchantRaw = k.merchants;
       const merchant = Array.isArray(merchantRaw)
         ? (merchantRaw[0] as { name: string; phone: string | null } | undefined) ?? null
@@ -65,17 +53,7 @@ export async function pullKiosks(): Promise<void> {
   }
 }
 
-/**
- * Pull today's tasks for the current driver from Supabase into local DB.
- * Uses Africa/Dar_es_Salaam timezone to determine "today".
- */
-export async function pullTasks(): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-
-  // Determine today's date in Africa/Dar_es_Salaam timezone
+async function _pullTasks(userId: string): Promise<void> {
   const today = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Africa/Dar_es_Salaam',
     year: 'numeric',
@@ -88,7 +66,7 @@ export async function pullTasks(): Promise<void> {
     .select(
       'id, kiosk_id, task_date, score_before, current_score, gross_revenue, dividend_rate_snapshot, dividend_amount, dividend_method, exchange_amount, expense_amount, expense_note, settlement_status, created_at',
     )
-    .eq('driver_id', user.id)
+    .eq('driver_id', userId)
     .eq('task_date', today);
 
   if (error) {
@@ -97,39 +75,39 @@ export async function pullTasks(): Promise<void> {
   }
 
   if (data && data.length > 0) {
-    const rows = data.map((t: Record<string, unknown>) => ({
-      id: t.id as string,
-      kiosk_id: t.kiosk_id as string,
-      task_date: t.task_date as string,
-      current_score: t.current_score as number,
-      score_before: t.score_before as number | undefined,
-      gross_revenue: t.gross_revenue as number | undefined,
-      dividend_rate_snapshot: t.dividend_rate_snapshot as number | undefined,
-      dividend_amount: t.dividend_amount as number | undefined,
-      dividend_method: t.dividend_method as 'cash' | 'retained' | undefined,
-      exchange_amount: t.exchange_amount as number | undefined,
-      expense_amount: t.expense_amount as number | undefined,
-      expense_note: t.expense_note as string | undefined,
-      settlement_status: t.settlement_status as 'pending' | 'settled' | undefined,
-      photo_urls: [],
-      notes: '',
-      sync_status: 'synced' as const,
-      created_at: t.created_at as string,
-    }));
+    // Preserve local-only fields (photo_urls, notes) that are not stored server-side
+    const ids = data.map(t => (t as Record<string, unknown>).id as string);
+    const existingRows = await db.tasks.bulkGet(ids);
+    const existingMap = new Map(existingRows.filter(Boolean).map(t => [t!.id, t!]));
+
+    const rows = data.map((t: Record<string, unknown>) => {
+      const local = existingMap.get(t.id as string);
+      return {
+        id: t.id as string,
+        kiosk_id: t.kiosk_id as string,
+        task_date: t.task_date as string,
+        current_score: t.current_score as number,
+        score_before: t.score_before as number | undefined,
+        gross_revenue: t.gross_revenue as number | undefined,
+        dividend_rate_snapshot: t.dividend_rate_snapshot as number | undefined,
+        dividend_amount: t.dividend_amount as number | undefined,
+        dividend_method: t.dividend_method as 'cash' | 'retained' | undefined,
+        exchange_amount: t.exchange_amount as number | undefined,
+        expense_amount: t.expense_amount as number | undefined,
+        expense_note: t.expense_note as string | undefined,
+        settlement_status: t.settlement_status as 'pending' | 'settled' | undefined,
+        // Merge: keep local photo_urls/notes if present, otherwise empty defaults
+        photo_urls: local?.photo_urls?.length ? local.photo_urls : [],
+        notes: local?.notes || '',
+        sync_status: 'synced' as const,
+        created_at: t.created_at as string,
+      };
+    });
     await db.tasks.bulkPut(rows);
   }
 }
 
-/**
- * Pull today's reconciliation for the current driver from Supabase into local DB.
- * Uses Africa/Dar_es_Salaam timezone to determine "today".
- */
-export async function pullReconciliations(): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-
+async function _pullReconciliations(userId: string): Promise<void> {
   const today = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Africa/Dar_es_Salaam',
     year: 'numeric',
@@ -142,7 +120,7 @@ export async function pullReconciliations(): Promise<void> {
     .select(
       'id, driver_id, reconciliation_date, total_kiosks_visited, total_gross_revenue, total_coins_collected, total_coins_exchanged, total_cash_from_exchange, total_dividend_cash, total_dividend_retained, total_expense_amount, opening_coin_balance, opening_cash_balance, theoretical_coin_balance, theoretical_cash_balance, actual_coin_balance, actual_cash_balance, coin_variance, cash_variance, notes, status, confirmed_by, confirmed_at, created_at',
     )
-    .eq('driver_id', user.id)
+    .eq('driver_id', userId)
     .eq('reconciliation_date', today);
 
   if (error) {
@@ -181,21 +159,11 @@ export async function pullReconciliations(): Promise<void> {
   }
 }
 
-/**
- * Pull score reset requests for the current driver from Supabase into local DB.
- * Includes approval status so the driver can see whether their requests have been
- * approved or rejected.
- */
-export async function pullScoreResetRequests(): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-
+async function _pullScoreResetRequests(userId: string): Promise<void> {
   const { data, error } = await supabase
     .from('score_reset_requests')
     .select('id, kiosk_id, current_score, requested_new_score, reason, status, rejection_reason, reviewed_at, created_at')
-    .eq('driver_id', user.id)
+    .eq('driver_id', userId)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -203,17 +171,10 @@ export async function pullScoreResetRequests(): Promise<void> {
     return;
   }
 
-  if (!data) {
-    return;
-  }
+  if (!data) return;
 
-  // If the remote has no score reset requests for this driver, clear locally
-  // stored synced requests to avoid cross-account leakage and stale statuses.
   if (data.length === 0) {
-    await db.score_reset_requests
-      .where('sync_status')
-      .equals('synced')
-      .delete();
+    await db.score_reset_requests.where('sync_status').equals('synced').delete();
     return;
   }
 
@@ -230,36 +191,22 @@ export async function pullScoreResetRequests(): Promise<void> {
     created_at: r.created_at as string,
   }));
 
-  // Upsert current remote rows.
   await db.score_reset_requests.bulkPut(rows);
 
-  // Remove any locally synced rows that no longer exist in the remote result set.
-  const remoteIdSet = new Set(rows.map((r) => r.id));
+  const remoteIdSet = new Set(rows.map(r => r.id));
   const localSyncedIds: string[] = (await db.score_reset_requests
-    .where('sync_status')
-    .equals('synced')
-    .primaryKeys()) as string[];
-  const staleIds = localSyncedIds.filter((id) => !remoteIdSet.has(id));
+    .where('sync_status').equals('synced').primaryKeys()) as string[];
+  const staleIds = localSyncedIds.filter(id => !remoteIdSet.has(id));
   if (staleIds.length > 0) {
     await db.score_reset_requests.bulkDelete(staleIds);
   }
 }
 
-/**
- * Pull kiosk onboarding records for the current driver from Supabase into local DB.
- * Includes review status so the driver can see whether their submissions have been
- * approved or rejected.
- */
-export async function pullOnboardingRecords(): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-
+async function _pullOnboardingRecords(userId: string): Promise<void> {
   const { data, error } = await supabase
     .from('kiosk_onboarding_records')
     .select('id, kiosk_id, onboarding_type, photo_urls, notes, status, reviewed_at, created_at')
-    .eq('driver_id', user.id)
+    .eq('driver_id', userId)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -267,17 +214,10 @@ export async function pullOnboardingRecords(): Promise<void> {
     return;
   }
 
-  if (!data) {
-    return;
-  }
+  if (!data) return;
 
-  // If the remote has no onboarding records for this driver, clear locally
-  // stored synced records to avoid cross-account leakage and stale statuses.
   if (data.length === 0) {
-    await db.kiosk_onboarding_records
-      .where('sync_status')
-      .equals('synced')
-      .delete();
+    await db.kiosk_onboarding_records.where('sync_status').equals('synced').delete();
     return;
   }
 
@@ -293,19 +233,77 @@ export async function pullOnboardingRecords(): Promise<void> {
     created_at: r.created_at as string,
   }));
 
-  // Upsert current remote rows.
   await db.kiosk_onboarding_records.bulkPut(rows);
 
-  // Remove any locally synced records that are no longer present remotely.
-  const remoteIdSet = new Set(rows.map((r) => r.id));
+  const remoteIdSet = new Set(rows.map(r => r.id));
   const localSyncedIds: string[] = (await db.kiosk_onboarding_records
-    .where('sync_status')
-    .equals('synced')
-    .primaryKeys()) as string[];
-  const staleIds = localSyncedIds.filter((id) => !remoteIdSet.has(id));
+    .where('sync_status').equals('synced').primaryKeys()) as string[];
+  const staleIds = localSyncedIds.filter(id => !remoteIdSet.has(id));
   if (staleIds.length > 0) {
     await db.kiosk_onboarding_records.bulkDelete(staleIds);
   }
+}
+
+// ---- Public API (each fetches its own user for standalone use) ----
+
+/**
+ * Pull kiosks assigned to the current driver from Supabase into local DB.
+ * Joins merchants to denormalise merchant_name / merchant_contact for
+ * offline display.
+ */
+export async function pullKiosks(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  await _pullKiosks(user.id);
+}
+
+/**
+ * Pull today's tasks for the current driver from Supabase into local DB.
+ * Uses Africa/Dar_es_Salaam timezone to determine "today".
+ * Preserves local photo_urls and notes to avoid clobbering unsynchronised data.
+ */
+export async function pullTasks(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  await _pullTasks(user.id);
+}
+
+/**
+ * Pull today's reconciliation for the current driver from Supabase into local DB.
+ * Uses Africa/Dar_es_Salaam timezone to determine "today".
+ */
+export async function pullReconciliations(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  await _pullReconciliations(user.id);
+}
+
+/**
+ * Pull score reset requests for the current driver from Supabase into local DB.
+ */
+export async function pullScoreResetRequests(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  await _pullScoreResetRequests(user.id);
+}
+
+/**
+ * Pull kiosk onboarding records for the current driver from Supabase into local DB.
+ */
+export async function pullOnboardingRecords(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  await _pullOnboardingRecords(user.id);
 }
 
 /**
@@ -436,15 +434,21 @@ async function markFailed(
 }
 
 /**
- * Full sync cycle: pull remote data, then push local queue.
+ * Full sync cycle: pull remote data (using a single auth check), then push local queue.
+ * Calling getUser() once here avoids 5 separate auth round-trips.
  */
 export async function startSync(): Promise<void> {
   try {
-    await pullKiosks();
-    await pullTasks();
-    await pullReconciliations();
-    await pullScoreResetRequests();
-    await pullOnboardingRecords();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await _pullKiosks(user.id);
+    await _pullTasks(user.id);
+    await _pullReconciliations(user.id);
+    await _pullScoreResetRequests(user.id);
+    await _pullOnboardingRecords(user.id);
     await retryPendingUploads();
     await processQueue();
   } catch (err) {
