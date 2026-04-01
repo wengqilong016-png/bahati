@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { db } from '../lib/db';
 import type { OnboardingType } from '../lib/types';
 import { ONBOARDING_TYPES } from '../lib/types';
-import { saveOnboarding, updateKioskDetails } from '../lib/actions';
+import { createKioskOnboarding, saveOnboarding } from '../lib/actions';
 import { uploadOnboardingPhoto } from '../lib/storage';
 
 export function OnboardKioskPage() {
@@ -30,7 +30,13 @@ export function OnboardKioskPage() {
   const [onboardingType, setOnboardingType] = useState<OnboardingType>(initialType);
   const [kioskId, setKioskId] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
+  const [merchantName, setMerchantName] = useState('');
+  const [merchantContactName, setMerchantContactName] = useState('');
+  const [merchantPhone, setMerchantPhone] = useState('');
+  const [merchantAddress, setMerchantAddress] = useState('');
+  const [locationName, setLocationName] = useState('');
   const [initialScore, setInitialScore] = useState('0');
+  const [initialCoinLoan, setInitialCoinLoan] = useState('0');
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -41,11 +47,29 @@ export function OnboardKioskPage() {
   const title = isRecert ? 'Re-certification' : 'New Machine Onboarding';
   const submitLabel = isRecert ? 'Submit Re-certification' : 'Submit Onboarding';
 
-  // Pre-fill serial number when a kiosk is selected
+  // Clear mode-specific fields when switching between onboarding and re-certification
   useEffect(() => {
-    const k = kiosks?.find(k => k.id === kioskId);
+    if (isRecert) {
+      setSerialNumber('');
+      setMerchantName('');
+      setMerchantContactName('');
+      setMerchantPhone('');
+      setMerchantAddress('');
+      setLocationName('');
+      setInitialScore('0');
+      setInitialCoinLoan('0');
+    } else {
+      setKioskId('');
+      setSerialNumber('');
+    }
+  }, [isRecert]);
+
+  // Pre-fill serial number when a kiosk is selected in re-certification mode
+  useEffect(() => {
+    if (!isRecert) return;
+    const k = kiosks?.find(kk => kk.id === kioskId);
     if (k) setSerialNumber(k.serial_number);
-  }, [kioskId, kiosks]);
+  }, [isRecert, kioskId, kiosks]);
 
   const uploadFn = useCallback(
     (file: File) => uploadOnboardingPhoto(file, onboardingIdRef.current),
@@ -59,45 +83,34 @@ export function OnboardKioskPage() {
     setSaving(true);
 
     try {
-      // For new onboarding: update kiosk serial number and initial score if changed.
-      // Fetch directly from Dexie to guarantee we have the actual stored row
-      // (the kiosks LiveQuery array may not yet be populated on first render).
-      if (!isRecert && kioskId) {
-        const k = await db.kiosks.get(kioskId);
-        if (!k) {
-          throw new Error('Kiosk not found in local database. Please sync first to load your assigned kiosks.');
-        }
-        const parsedScore = parseInt(initialScore, 10);
-        const scoreChanged = !isNaN(parsedScore) && parsedScore !== k.last_recorded_score;
-        const serialChanged = serialNumber.trim() !== '' && serialNumber.trim() !== k.serial_number;
-        if (serialChanged || scoreChanged) {
-          await updateKioskDetails({
-            kioskId,
-            serialNumber: serialChanged ? serialNumber.trim() : undefined,
-            initialScore: scoreChanged ? parsedScore : undefined,
-          });
-        }
+      if (isRecert) {
+        await saveOnboarding({
+          id: onboardingIdRef.current,
+          kioskId,
+          onboardingType,
+          photoUrls: photos,
+          notes: notes.trim(),
+        });
+        const { processQueue } = await import('../lib/sync');
+        await processQueue();
+      } else {
+        const parsedInitialScore = parseInt(initialScore, 10);
+        const parsedInitialCoinLoan = Number(initialCoinLoan);
+
+        await createKioskOnboarding({
+          onboardingId: onboardingIdRef.current,
+          merchantName,
+          merchantContactName,
+          merchantPhone,
+          merchantAddress,
+          kioskSerialNumber: serialNumber,
+          kioskLocationName: locationName,
+          initialScore: Number.isNaN(parsedInitialScore) ? 0 : parsedInitialScore,
+          initialCoinLoan: Number.isNaN(parsedInitialCoinLoan) ? 0 : parsedInitialCoinLoan,
+          photoUrls: photos,
+          notes: notes.trim(),
+        });
       }
-
-      // Build enhanced notes with serial number and initial score metadata for new onboarding
-      const enhancedNotes = !isRecert
-        ? [
-            serialNumber.trim() ? `Serial: ${serialNumber.trim()}` : null,
-            `Initial Score: ${initialScore || '0'}`,
-            notes.trim() || null,
-          ].filter(Boolean).join(' | ')
-        : notes;
-
-      await saveOnboarding({
-        id: onboardingIdRef.current,
-        kioskId,
-        onboardingType,
-        photoUrls: photos,
-        notes: enhancedNotes,
-      });
-      // Sync to push record to server
-      const { processQueue } = await import('../lib/sync');
-      await processQueue();
       setSaved(true);
       setTimeout(() => navigate('/home'), 1200);
     } catch (err) {
@@ -182,29 +195,102 @@ export function OnboardKioskPage() {
       )}
 
       <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-            Select Kiosk *
-          </label>
-          <select
-            value={kioskId}
-            onChange={e => setKioskId(e.target.value)}
-            required
-            style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box', background: '#fff' }}
-          >
-            <option value="">— Select a kiosk —</option>
-            {kiosks?.map(k => (
-              <option key={k.id} value={k.id}>
-                {k.serial_number} — {k.merchant_name} ({k.location_name})
-              </option>
-            ))}
-          </select>
-          {kiosks && kiosks.length === 0 && (
-            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#e65100' }}>
-              No kiosks found. Please sync first to load your assigned kiosks.
-            </p>
-          )}
-        </div>
+        {isRecert && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
+              Select Kiosk *
+            </label>
+            <select
+              value={kioskId}
+              onChange={e => setKioskId(e.target.value)}
+              required
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box', background: '#fff' }}
+            >
+              <option value="">— Select a kiosk —</option>
+              {kiosks?.map(k => (
+                <option key={k.id} value={k.id}>
+                  {k.serial_number} — {k.merchant_name} ({k.location_name})
+                </option>
+              ))}
+            </select>
+            {kiosks && kiosks.length === 0 && (
+              <p style={{ margin: '6px 0 0', fontSize: 12, color: '#e65100' }}>
+                No kiosks found. Please sync first to load your assigned kiosks.
+              </p>
+            )}
+          </div>
+        )}
+
+        {!isRecert && (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
+                Merchant Name *
+              </label>
+              <input
+                type="text"
+                value={merchantName}
+                onChange={e => setMerchantName(e.target.value)}
+                required
+                placeholder="e.g. Bahati Store"
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
+                Merchant Contact Name
+              </label>
+              <input
+                type="text"
+                value={merchantContactName}
+                onChange={e => setMerchantContactName(e.target.value)}
+                placeholder="e.g. John Doe"
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
+                Merchant Phone
+              </label>
+              <input
+                type="tel"
+                value={merchantPhone}
+                onChange={e => setMerchantPhone(e.target.value)}
+                placeholder="e.g. +254700000000"
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
+                Merchant Address
+              </label>
+              <input
+                type="text"
+                value={merchantAddress}
+                onChange={e => setMerchantAddress(e.target.value)}
+                placeholder="e.g. Moi Avenue, Nairobi"
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
+                Kiosk Location Name *
+              </label>
+              <input
+                type="text"
+                value={locationName}
+                onChange={e => setLocationName(e.target.value)}
+                required
+                placeholder="e.g. Front Door"
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
+              />
+            </div>
+          </>
+        )}
 
         {/* Serial number — editable for new onboarding so driver can correct it on-site */}
         {!isRecert && (
@@ -220,13 +306,35 @@ export function OnboardKioskPage() {
               placeholder="e.g. SK-2024-001"
               style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
             />
-            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888' }}>
-              You can edit this to match the serial number printed on the machine.
-            </p>
+            {!isRecert && (
+              <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888' }}>
+                Enter the serial number printed on the new machine.
+              </p>
+            )}
           </div>
         )}
 
         {/* Initial score — for new onboarding only */}
+        {!isRecert && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
+              Initial Coin Loan
+            </label>
+            <input
+              type="number"
+              value={initialCoinLoan}
+              onChange={e => setInitialCoinLoan(e.target.value)}
+              min={0}
+              step="0.01"
+              placeholder="0"
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
+            />
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888' }}>
+              Optional. If greater than 0, an initial debt ledger entry will be created.
+            </p>
+          </div>
+        )}
+
         {!isRecert && (
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>

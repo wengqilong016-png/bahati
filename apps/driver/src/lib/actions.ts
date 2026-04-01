@@ -14,6 +14,7 @@
 // ============================================================
 
 import { db } from './db';
+import { supabase } from './supabase';
 import type { OnboardingType } from './types';
 import { validateDailyTaskScore, validateScoreResetRequest } from './validation';
 import { getTodayNairobi } from './utils';
@@ -178,6 +179,105 @@ export async function saveOnboarding(input: SaveOnboardingInput): Promise<void> 
       created_at: now,
     });
   });
+}
+
+export interface CreateKioskOnboardingInput {
+  onboardingId?: string;
+  merchantName: string;
+  merchantContactName?: string;
+  merchantPhone?: string;
+  merchantAddress?: string;
+  kioskSerialNumber: string;
+  kioskLocationName: string;
+  initialScore: number;
+  initialCoinLoan: number;
+  photoUrls: string[];
+  notes: string;
+}
+
+/**
+ * New-machine onboarding flow:
+ * - Create merchant
+ * - Create kiosk (assigned to current driver)
+ * - Create kiosk_onboarding_record (onboarding type)
+ * - Optionally create initial coin loan (merchant_ledger initial_coins)
+ *
+ * This must happen on server via RPC because drivers don't have direct INSERT
+ * permissions on merchants / kiosks tables.
+ */
+export async function createKioskOnboarding(input: CreateKioskOnboardingInput): Promise<{ kioskId: string; merchantId: string }> {
+  if (input.merchantName.trim() === '') {
+    throw new Error('Merchant name is required.');
+  }
+  if (input.kioskSerialNumber.trim() === '') {
+    throw new Error('Machine serial number is required.');
+  }
+  if (input.kioskLocationName.trim() === '') {
+    throw new Error('Kiosk location is required.');
+  }
+  if (!Number.isFinite(input.initialScore) || input.initialScore < 0) {
+    throw new Error('Initial score must be a non-negative number.');
+  }
+  if (!Number.isFinite(input.initialCoinLoan) || input.initialCoinLoan < 0) {
+    throw new Error('Initial coin loan must be a non-negative number.');
+  }
+  if (input.photoUrls.length === 0) {
+    throw new Error('At least one photo is required for onboarding.');
+  }
+
+  const onboardingId = input.onboardingId ?? crypto.randomUUID();
+  const { data, error } = await supabase.rpc('driver_create_onboarding_bundle', {
+    p_merchant_name: input.merchantName.trim(),
+    p_kiosk_serial_number: input.kioskSerialNumber.trim(),
+    p_kiosk_location_name: input.kioskLocationName.trim(),
+    p_onboarding_id: onboardingId,
+    p_merchant_contact_name: input.merchantContactName?.trim() || null,
+    p_merchant_phone: input.merchantPhone?.trim() || null,
+    p_merchant_address: input.merchantAddress?.trim() || null,
+    p_kiosk_initial_score: input.initialScore,
+    p_initial_coin_loan: input.initialCoinLoan,
+    p_photo_urls: input.photoUrls,
+    p_notes: input.notes.trim() || null,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const row = (Array.isArray(data) ? data[0] : data) as { kiosk_id?: string; merchant_id?: string } | null;
+  const kioskId = row?.kiosk_id;
+  const merchantId = row?.merchant_id;
+  if (!kioskId || !UUID_RE.test(kioskId) || !merchantId || !UUID_RE.test(merchantId)) {
+    throw new Error('Onboarding created, but required IDs (kiosk/merchant) were not returned by server.');
+  }
+
+  // Ensure local app can immediately see the new kiosk & onboarding record before next full sync.
+  const now = new Date().toISOString();
+  await db.transaction('rw', [db.kiosks, db.kiosk_onboarding_records], async () => {
+    await db.kiosks.put({
+      id: kioskId,
+      serial_number: input.kioskSerialNumber.trim(),
+      merchant_id: merchantId,
+      merchant_name: input.merchantName.trim(),
+      merchant_contact: input.merchantPhone?.trim() || undefined,
+      location_name: input.kioskLocationName.trim(),
+      status: 'active',
+      last_recorded_score: input.initialScore,
+    });
+
+    await db.kiosk_onboarding_records.put({
+      id: onboardingId,
+      kiosk_id: kioskId,
+      onboarding_type: 'onboarding',
+      photo_urls: input.photoUrls,
+      notes: input.notes.trim(),
+      status: 'pending',
+      sync_status: 'synced',
+      created_at: now,
+    });
+  });
+
+  return { kioskId, merchantId };
 }
 
 // ---- Kiosk Details Update (serial number + initial score) ----
