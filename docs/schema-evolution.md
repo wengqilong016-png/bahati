@@ -28,10 +28,13 @@
 
 | 旧名 | 新名 | 切换点（migration） | 说明 |
 |---|---|---|---|
+| `profiles` | `drivers` | `20240104000000_phase1_complete_schema.sql` | 核心身份表重命名。 |
 | `machines` | `kiosks` | `20240104000000_phase1_complete_schema.sql` | Phase1 完整重建时落地新命名；旧 migration 仍保留历史定义。 |
 | `machine_onboardings` | `kiosk_onboarding_records` | `20240104000000_phase1_complete_schema.sql` | 业务入网记录切到 kiosk 语义。 |
+| `daily_tasks` | `tasks` | `20240104000000_phase1_complete_schema.sql` | 任务表去冗余命名。 |
 | `daily_settlements` | `daily_driver_reconciliations` | `20240105000000_phase2_ledger_reconciliation.sql` | 日结由汇总表升级为“提交/确认”双阶段对账模型。 |
-| `merchant_ledger_entries` | `merchant_ledger` | `20240104000000_phase1_complete_schema.sql` + `20240105000000_phase2_ledger_reconciliation.sql` | 从旧账本命名迁移到新账本结构并扩展 retained/debt 流。 |
+| `driver_ledger_entries` | `driver_fund_ledger` | `20240105000000_phase2_ledger_reconciliation.sql` | 司机账本结构升级。 |
+| `merchant_ledger_entries` | `merchant_ledger` | `20240105000000_phase2_ledger_reconciliation.sql` | 从旧账本命名迁移到新账本结构并扩展 retained/debt 流。 |
 
 ---
 
