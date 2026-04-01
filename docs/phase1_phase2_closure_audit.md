@@ -5,7 +5,7 @@
 
 ## A. 发现摘要
 
-1. **本次安全硬化已补齐**：新增 migration `20260401000300_score_reset_search_path_hardening.sql`，对 `approve_score_reset`、`reject_score_reset`、`handle_score_reset_approval` 执行 `CREATE OR REPLACE` 且显式 `SET search_path = public`，并附 `pg_proc.proconfig` 校验 SQL。  
+1. **本次安全硬化已补齐**：在 migration `20260401000200_stage2_security_hardening.sql` 中已对 `approve_score_reset`、`reject_score_reset`、`handle_score_reset_approval` 执行 `CREATE OR REPLACE` 且显式 `SET search_path = public`。
 2. **新旧表名并存于仓库**：业务主迁移已切换到 `kiosks/tasks/daily_driver_reconciliations/...`，但历史迁移与 Dexie 迁移注释仍保留 `machines/machine_onboardings/daily_settlements`。这是“历史兼容存在”，不是运行期主路径，但易造成理解偏差。  
 3. **核心 Phase2 RPC（含 `driver_create_onboarding_bundle` 在内）均已定义 + SECURITY DEFINER 且显式 `SET search_path = public`；此前审计备注中关于该 RPC "缺失 SECURITY DEFINER / search_path" 的结论已由 `supabase/migrations/20260401000100_driver_onboarding_bundle.sql` 更正。  
 4. **RLS/列权限已加固关键列**：`drivers.coin_balance/cash_balance` 直接 UPDATE 已对 authenticated 撤销；`merchants.retained_balance/debt_balance` 对 authenticated 撤销 SELECT，boss 通过 `read_merchant_balances()` 读取。  
@@ -210,7 +210,7 @@
 ## F. 建议的 PR 拆分（Stage1..Stage7）
 
 ### Stage 1 — DB Security Hardening 收口
-- 合并本次 score-reset search_path migration。
+- 确认 score-reset search_path hardening 已在 `20260401000200_stage2_security_hardening.sql` 中完成。
 - 确认 `driver_create_onboarding_bundle` 已按 `20260401000100_driver_onboarding_bundle.sql` 中的定义（`SECURITY DEFINER + SET search_path=public`）在各环境迁移到位，如发现偏差则补充修复 migration。
 - 增加 `pg_proc.proconfig` 自动化校验 SQL（CI 可跑）。
 
@@ -269,7 +269,6 @@
 - `supabase/migrations/20240106000000_boss_read_merchant_balances.sql`
 - `supabase/migrations/20260401000100_driver_onboarding_bundle.sql`
 - `supabase/migrations/20260401000200_stage2_security_hardening.sql`
-- `supabase/migrations/20260401000300_score_reset_search_path_hardening.sql`
 - `apps/driver/src/lib/db.ts`
 - `apps/driver/src/lib/actions.ts`
 - `apps/driver/src/lib/reconciliation.ts`
