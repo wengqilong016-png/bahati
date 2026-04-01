@@ -216,7 +216,14 @@ export async function updateKioskDetails(input: UpdateKioskDetailsInput): Promis
   const now = new Date().toISOString();
 
   await db.transaction('rw', [db.kiosks, db.sync_queue], async () => {
-    await db.kiosks.update(input.kioskId, updates);
+    const modified = await db.kiosks.update(input.kioskId, updates);
+
+    // Only enqueue a server sync when the local row actually existed and was updated.
+    // If modified === 0 the kiosk isn't in the local DB yet; queueing an UPDATE
+    // would create an orphan sync item that would fail repeatedly on the server.
+    if (modified === 0) {
+      throw new Error('Kiosk not found in local database. Please sync first before updating kiosk details.');
+    }
 
     await db.sync_queue.add({
       table_name: 'kiosks',

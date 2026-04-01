@@ -59,12 +59,17 @@ export function OnboardKioskPage() {
     setSaving(true);
 
     try {
-      // For new onboarding: update kiosk serial number and initial score if changed
+      // For new onboarding: update kiosk serial number and initial score if changed.
+      // Fetch directly from Dexie to guarantee we have the actual stored row
+      // (the kiosks LiveQuery array may not yet be populated on first render).
       if (!isRecert && kioskId) {
-        const k = kiosks?.find(k => k.id === kioskId);
+        const k = await db.kiosks.get(kioskId);
+        if (!k) {
+          throw new Error('Kiosk not found in local database. Please sync first to load your assigned kiosks.');
+        }
         const parsedScore = parseInt(initialScore, 10);
-        const scoreChanged = !isNaN(parsedScore) && parsedScore !== (k?.last_recorded_score ?? 0);
-        const serialChanged = serialNumber.trim() !== '' && serialNumber.trim() !== k?.serial_number;
+        const scoreChanged = !isNaN(parsedScore) && parsedScore !== k.last_recorded_score;
+        const serialChanged = serialNumber.trim() !== '' && serialNumber.trim() !== k.serial_number;
         if (serialChanged || scoreChanged) {
           await updateKioskDetails({
             kioskId,
