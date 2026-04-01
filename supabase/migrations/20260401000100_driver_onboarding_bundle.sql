@@ -97,7 +97,7 @@ BEGIN
   ) VALUES (
     v_kiosk.id,
     v_driver_id,
-    v_driver_id,
+    NULL,
     'Auto-assigned during new machine onboarding'
   );
 
