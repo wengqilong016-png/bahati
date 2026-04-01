@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, FormEvent } from 'react';
+import { useState, useRef, useCallback, FormEvent, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { PhotoCapture } from '../components/PhotoCapture';
@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { db } from '../lib/db';
 import type { OnboardingType } from '../lib/types';
 import { ONBOARDING_TYPES } from '../lib/types';
-import { saveOnboarding } from '../lib/actions';
+import { saveOnboarding, updateKioskDetails } from '../lib/actions';
 import { uploadOnboardingPhoto } from '../lib/storage';
 
 export function OnboardKioskPage() {
@@ -29,6 +29,8 @@ export function OnboardKioskPage() {
 
   const [onboardingType, setOnboardingType] = useState<OnboardingType>(initialType);
   const [kioskId, setKioskId] = useState('');
+  const [serialNumber, setSerialNumber] = useState('');
+  const [initialScore, setInitialScore] = useState('0');
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -36,8 +38,14 @@ export function OnboardKioskPage() {
   const [error, setError] = useState<string | null>(null);
 
   const isRecert = onboardingType === 'recertification';
-  const title = isRecert ? 'Re-certification' : 'Kiosk Onboarding';
+  const title = isRecert ? 'Re-certification' : 'New Machine Onboarding';
   const submitLabel = isRecert ? 'Submit Re-certification' : 'Submit Onboarding';
+
+  // Pre-fill serial number when a kiosk is selected
+  useEffect(() => {
+    const k = kiosks?.find(k => k.id === kioskId);
+    if (k) setSerialNumber(k.serial_number);
+  }, [kioskId, kiosks]);
 
   const uploadFn = useCallback(
     (file: File) => uploadOnboardingPhoto(file, onboardingIdRef.current),
@@ -51,12 +59,36 @@ export function OnboardKioskPage() {
     setSaving(true);
 
     try {
+      // For new onboarding: update kiosk serial number and initial score if changed
+      if (!isRecert && kioskId) {
+        const k = kiosks?.find(k => k.id === kioskId);
+        const parsedScore = parseInt(initialScore, 10);
+        const scoreChanged = !isNaN(parsedScore) && parsedScore !== (k?.last_recorded_score ?? 0);
+        const serialChanged = serialNumber.trim() !== '' && serialNumber.trim() !== k?.serial_number;
+        if (serialChanged || scoreChanged) {
+          await updateKioskDetails({
+            kioskId,
+            serialNumber: serialChanged ? serialNumber.trim() : undefined,
+            initialScore: scoreChanged ? parsedScore : undefined,
+          });
+        }
+      }
+
+      // Build enhanced notes with serial number and initial score metadata for new onboarding
+      const enhancedNotes = !isRecert
+        ? [
+            serialNumber.trim() ? `Serial: ${serialNumber.trim()}` : null,
+            `Initial Score: ${initialScore || '0'}`,
+            notes.trim() || null,
+          ].filter(Boolean).join(' | ')
+        : notes;
+
       await saveOnboarding({
         id: onboardingIdRef.current,
         kioskId,
         onboardingType,
         photoUrls: photos,
-        notes,
+        notes: enhancedNotes,
       });
       // Sync to push record to server
       const { processQueue } = await import('../lib/sync');
@@ -169,6 +201,47 @@ export function OnboardKioskPage() {
           )}
         </div>
 
+        {/* Serial number — editable for new onboarding so driver can correct it on-site */}
+        {!isRecert && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
+              Machine Serial Number *
+            </label>
+            <input
+              type="text"
+              value={serialNumber}
+              onChange={e => setSerialNumber(e.target.value)}
+              required
+              placeholder="e.g. SK-2024-001"
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
+            />
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888' }}>
+              You can edit this to match the serial number printed on the machine.
+            </p>
+          </div>
+        )}
+
+        {/* Initial score — for new onboarding only */}
+        {!isRecert && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
+              Initial Score Reading *
+            </label>
+            <input
+              type="number"
+              value={initialScore}
+              onChange={e => setInitialScore(e.target.value)}
+              required
+              min={0}
+              placeholder="0"
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
+            />
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888' }}>
+              Enter the current score reading shown on the machine display.
+            </p>
+          </div>
+        )}
+
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
             Notes
@@ -184,7 +257,7 @@ export function OnboardKioskPage() {
 
         <div style={{ marginBottom: 20 }}>
           <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
-            照片 ({photos.length}){!isRecert && ' *'}
+            Photos ({photos.length}){!isRecert && ' *'}
           </label>
           <PhotoCapture
             photos={photos}

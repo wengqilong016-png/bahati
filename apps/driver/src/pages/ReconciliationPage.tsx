@@ -65,12 +65,12 @@ export function ReconciliationPage() {
     const cashAmt = parseFloat(actualCashBalance) || 0;
 
     if (coinAmt < 0) {
-      setError('实际硬币余额不能为负数');
+      setError('Actual coin balance cannot be negative');
       return;
     }
 
     if (cashAmt < 0) {
-      setError('实际现金余额不能为负数');
+      setError('Actual cash balance cannot be negative');
       return;
     }
 
@@ -78,7 +78,7 @@ export function ReconciliationPage() {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      setError('用户未登录，请重新登录');
+      setError('Not logged in. Please sign in again.');
       return;
     }
 
@@ -95,7 +95,7 @@ export function ReconciliationPage() {
       setSuccess(true);
       setRefreshKey(k => k + 1);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '日结提交失败，请重试';
+      const msg = err instanceof Error ? err.message : 'Daily close submission failed. Please try again.';
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -139,7 +139,7 @@ export function ReconciliationPage() {
             marginBottom: 20,
           }}
         >
-          <h2 style={{ margin: 0, color: '#0066CC' }}>今日日结</h2>
+          <h2 style={{ margin: 0, color: '#0066CC' }}>Today's Daily Close</h2>
           <button
             onClick={handleRefresh}
             disabled={syncing}
@@ -154,7 +154,7 @@ export function ReconciliationPage() {
               opacity: syncing ? 0.6 : 1,
             }}
           >
-            {syncing ? '同步中...' : '🔄 刷新'}
+            {syncing ? 'Syncing...' : '🔄 Refresh'}
           </button>
         </div>
 
@@ -174,7 +174,7 @@ export function ReconciliationPage() {
               marginBottom: 16,
             }}
           >
-            <span style={{ fontWeight: 700, fontSize: 16 }}>日结详情</span>
+            <span style={{ fontWeight: 700, fontSize: 16 }}>Daily Close Summary</span>
             <span
               style={{
                 background: isConfirmed ? '#1e7e34' : '#1565c0',
@@ -184,20 +184,20 @@ export function ReconciliationPage() {
                 fontSize: 13,
               }}
             >
-              {isConfirmed ? '✅ 已确认' : '✅ 已提交'}
+              {isConfirmed ? '✅ Confirmed' : '✅ Submitted'}
             </span>
           </div>
 
           <div style={{ fontSize: 14, color: '#444', lineHeight: 2 }}>
-            <div>日期: {r.reconciliation_date}</div>
-            <div>实盘硬币余额: ¥{r.actual_coin_balance.toLocaleString()}</div>
-            <div>实盘现金余额: ¥{r.actual_cash_balance.toLocaleString()}</div>
-            <div>理论硬币余额: ¥{r.theoretical_coin_balance.toLocaleString()}</div>
-            <div>理论现金余额: ¥{r.theoretical_cash_balance.toLocaleString()}</div>
-            <div>硬币差异: ¥{r.coin_variance.toLocaleString()}</div>
-            <div>现金差异: ¥{r.cash_variance.toLocaleString()}</div>
-            <div>今日总支出: ¥{r.total_expense_amount.toLocaleString()}</div>
-            {r.notes && <div>备注: {r.notes}</div>}
+            <div>Date: {r.reconciliation_date}</div>
+            <div>Actual Coin Balance: KES {r.actual_coin_balance.toLocaleString()}</div>
+            <div>Actual Cash Balance: KES {r.actual_cash_balance.toLocaleString()}</div>
+            <div>Expected Coin Balance: KES {r.theoretical_coin_balance.toLocaleString()}</div>
+            <div>Expected Cash Balance: KES {r.theoretical_cash_balance.toLocaleString()}</div>
+            <div>Coin Variance: KES {r.coin_variance.toLocaleString()}</div>
+            <div>Cash Variance: KES {r.cash_variance.toLocaleString()}</div>
+            <div>Total Expenses Today: KES {r.total_expense_amount.toLocaleString()}</div>
+            {r.notes && <div>Notes: {r.notes}</div>}
           </div>
         </div>
       </div>
@@ -214,7 +214,7 @@ export function ReconciliationPage() {
           marginBottom: 20,
         }}
       >
-        <h2 style={{ margin: 0, color: '#0066CC' }}>今日日结</h2>
+        <h2 style={{ margin: 0, color: '#0066CC' }}>Today's Daily Close</h2>
         <button
           onClick={handleRefresh}
           disabled={syncing}
@@ -229,7 +229,7 @@ export function ReconciliationPage() {
             opacity: syncing ? 0.6 : 1,
           }}
         >
-          {syncing ? '同步中...' : '🔄 刷新'}
+          {syncing ? 'Syncing...' : '🔄 Refresh'}
         </button>
       </div>
 
@@ -245,7 +245,7 @@ export function ReconciliationPage() {
           }}
         >
           <h3 style={{ margin: '0 0 10px', fontSize: 14, color: '#0066CC', fontWeight: 600 }}>
-            今日已结算任务（{settledTasks.length}）
+            Today's Settled Tasks ({settledTasks.length})
           </h3>
           {settledTasks.map((t: LocalTask) => {
             const k = kioskMap.get(t.kiosk_id);
@@ -261,9 +261,9 @@ export function ReconciliationPage() {
                   <span style={{ fontSize: 12, color: '#1e7e34', fontWeight: 600 }}>✅</span>
                 </div>
                 <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>
-                  分数: {t.score_before ?? '—'} → {t.current_score}
-                  {grossRevenue !== undefined && ` · 营业额: ¥${grossRevenue.toLocaleString()}`}
-                  {t.exchange_amount !== undefined && t.exchange_amount > 0 && ` · 换币: ¥${t.exchange_amount.toLocaleString()}`}
+                  Score: {t.score_before ?? '—'} → {t.current_score}
+                  {grossRevenue !== undefined && ` · Revenue: KES ${grossRevenue.toLocaleString()}`}
+                  {t.exchange_amount !== undefined && t.exchange_amount > 0 && ` · Exchange: KES ${t.exchange_amount.toLocaleString()}`}
                 </div>
               </div>
             );
@@ -284,7 +284,7 @@ export function ReconciliationPage() {
             color: '#e65100',
           }}
         >
-          ⚠️ 今日还有 {pendingTasks.length} 个未结算任务。建议先完成所有结算再提交日结。
+          ⚠️ {pendingTasks.length} unsettled task{pendingTasks.length !== 1 ? 's' : ''} remaining today. It is recommended to settle all tasks before submitting the daily close.
         </div>
       )}
 
@@ -298,7 +298,7 @@ export function ReconciliationPage() {
         }}
       >
         <h3 style={{ margin: '0 0 14px', fontSize: 14, color: '#555', fontWeight: 600 }}>
-          日结表单
+          Daily Close Form
         </h3>
 
         {success && (
@@ -313,7 +313,7 @@ export function ReconciliationPage() {
               color: '#1e7e34',
             }}
           >
-            ✅ 日结已成功提交！
+            ✅ Daily close submitted successfully!
           </div>
         )}
 
@@ -334,12 +334,12 @@ export function ReconciliationPage() {
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>提交日期</label>
+            <label style={labelStyle}>Submission Date</label>
             <input readOnly value={today} style={readonlyStyle} />
           </div>
 
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>实盘硬币余额</label>
+            <label style={labelStyle}>Actual Coin Balance (KES)</label>
             <input
               type="number"
               min={0}
@@ -352,7 +352,7 @@ export function ReconciliationPage() {
           </div>
 
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>实盘现金余额</label>
+            <label style={labelStyle}>Actual Cash Balance (KES)</label>
             <input
               type="number"
               min={0}
@@ -366,13 +366,13 @@ export function ReconciliationPage() {
 
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>
-              备注 <span style={{ fontWeight: 400, color: '#888' }}>(可选)</span>
+              Notes <span style={{ fontWeight: 400, color: '#888' }}>(optional)</span>
             </label>
             <input
               type="text"
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              placeholder="请输入备注..."
+              placeholder="Enter notes..."
               style={inputStyle}
             />
           </div>
@@ -393,7 +393,7 @@ export function ReconciliationPage() {
               opacity: submitting ? 0.7 : 1,
             }}
           >
-            {submitting ? '提交中...' : '提交日结'}
+            {submitting ? 'Submitting...' : 'Submit Daily Close'}
           </button>
         </form>
       </div>

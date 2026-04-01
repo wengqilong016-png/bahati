@@ -24,8 +24,8 @@ export interface SettleTaskParams {
 export async function settleTask(params: SettleTaskParams): Promise<void> {
   const { taskId, dividendMethod, exchangeAmount, expenseAmount, expenseNote } = params;
 
-  if (exchangeAmount < 0) throw new Error('换币金额不能为负数');
-  if (expenseAmount < 0) throw new Error('支出金额不能为负数');
+  if (exchangeAmount < 0) throw new Error('Token exchange amount cannot be negative.');
+  if (expenseAmount < 0) throw new Error('Expense amount cannot be negative.');
 
   const { error } = await supabase.rpc('record_task_settlement', {
     p_task_id: taskId,
@@ -37,7 +37,7 @@ export async function settleTask(params: SettleTaskParams): Promise<void> {
 
   if (error) {
     // Surface the server-side error message to the UI
-    throw new Error(error.message || '结算失败，请重试');
+    throw new Error(error.message || 'Settlement failed. Please try again.');
   }
 
   // Optimistically update local Dexie record so the UI refreshes instantly

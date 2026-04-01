@@ -55,7 +55,7 @@ function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error('无法读取文件'));
+    reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsDataURL(file);
   });
 }
@@ -85,7 +85,7 @@ async function compressIfNeeded(file: File): Promise<File> {
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        reject(new Error('无法创建 Canvas 上下文'));
+        reject(new Error('Failed to create Canvas context'));
         return;
       }
       ctx.drawImage(img, 0, 0, width, height);
@@ -96,7 +96,7 @@ async function compressIfNeeded(file: File): Promise<File> {
         canvas.toBlob(
           blob => {
             if (!blob) {
-              reject(new Error('图片压缩失败'));
+              reject(new Error('Image compression failed'));
               return;
             }
             if (blob.size <= MAX_SIZE_BYTES) {
@@ -121,7 +121,7 @@ async function compressIfNeeded(file: File): Promise<File> {
 
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error('图片加载失败'));
+      reject(new Error('Failed to load image'));
     };
 
     img.src = objectUrl;
@@ -162,7 +162,7 @@ async function uploadFileToBucket(
     } catch {
       // Best-effort — if we can't queue it, we just lose it
     }
-    throw new Error(`上传失败：${error.message}`);
+    throw new Error(`Upload failed: ${error.message}`);
   }
 
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
@@ -183,7 +183,7 @@ export async function uploadTaskPhoto(file: File, taskId: string): Promise<strin
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) throw new Error('未登录，无法上传照片');
+  if (!user) throw new Error('Not logged in. Cannot upload task photos.');
 
   // Use Africa/Nairobi date to match task_date written by saveDailyTask()
   const taskDate = getTodayNairobi();
@@ -205,7 +205,7 @@ export async function uploadOnboardingPhoto(file: File, onboardingId: string): P
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) throw new Error('未登录，无法上传照片');
+  if (!user) throw new Error('Not logged in. Cannot upload onboarding photos.');
 
   return uploadFileToBucket(file, 'onboarding-photos', compressed => {
     const ext = compressed.name.split('.').pop() ?? 'jpg';

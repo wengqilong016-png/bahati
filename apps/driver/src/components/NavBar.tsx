@@ -5,8 +5,8 @@ const tabs = [
   { to: '/home', label: 'Home', icon: '🏠' },
   { to: '/kiosks', label: 'Kiosks', icon: '🏪' },
   { to: '/onboard', label: 'Onboard', icon: '➕' },
-  { to: '/settlement', label: '结算', icon: '💰' },
-  { to: '/reconciliation', label: '日结', icon: '📋' },
+  { to: '/settlement', label: 'Settlement', icon: '💰' },
+  { to: '/reconciliation', label: 'Daily Close', icon: '📋' },
   { to: '/sync', label: 'Sync', icon: '🔄' },
 ];
 
@@ -18,10 +18,10 @@ const CONNECTION_COLORS: Record<ConnectionStatus, string> = {
 };
 
 const CONNECTION_LABELS: Record<ConnectionStatus, string> = {
-  connected: '已连接',
-  'config-error': '配置错误',
-  'network-error': '网络错误',
-  checking: '连接中…',
+  connected: 'Connected',
+  'config-error': 'Config Error',
+  'network-error': 'Network Error',
+  checking: 'Connecting…',
 };
 
 export function NavBar() {

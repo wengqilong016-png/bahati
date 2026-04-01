@@ -82,17 +82,17 @@ export function ScoreResetPage() {
       {/* Existing request status from approval flow */}
       {latestRequest && latestRequest.status === 'pending' && (
         <div style={{ background: '#fff3e0', border: '1px solid #ffe082', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-          ⏳ 已有一条待审批的重置申请（{latestRequest.current_score} → {latestRequest.requested_new_score}），请等待审批结果。
+          ⏳ A score reset request is pending approval ({latestRequest.current_score} → {latestRequest.requested_new_score}). Please wait for the result.
         </div>
       )}
       {latestRequest && latestRequest.status === 'approved' && (
         <div style={{ background: '#e6f4ea', border: '1px solid #a5d6a7', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-          ✅ 上一次重置申请已通过（{latestRequest.current_score} → {latestRequest.requested_new_score}），分数已更新。
+          ✅ Last reset request approved ({latestRequest.current_score} → {latestRequest.requested_new_score}). Score updated.
         </div>
       )}
       {latestRequest && latestRequest.status === 'rejected' && (
         <div style={{ background: '#fce8e6', border: '1px solid #ef9a9a', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-          ❌ 上一次重置申请被驳回{latestRequest.rejection_reason ? `：${latestRequest.rejection_reason}` : ''}
+          ❌ Last reset request rejected{latestRequest.rejection_reason ? `: ${latestRequest.rejection_reason}` : ''}
         </div>
       )}
 

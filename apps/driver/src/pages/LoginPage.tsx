@@ -64,8 +64,8 @@ export function LoginPage() {
             </span>
             <span>
               {connStatus === 'config-error'
-                ? '后端配置缺失：请在部署平台将环境变量名称改为 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY。'
-                : '无法连接到服务器，请检查网络连接。'}
+                ? 'Backend config missing: rename your environment variables to VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your deployment platform.'
+                : 'Cannot connect to server. Please check your network connection.'}
             </span>
           </div>
         )}
