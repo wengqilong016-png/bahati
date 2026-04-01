@@ -1,6 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { NavSidebar } from './components/NavSidebar';
+import { ToastProvider } from './components/Toast';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DriversPage } from './pages/DriversPage';
@@ -12,6 +13,15 @@ import { MapOverviewPage } from './pages/MapOverviewPage';
 import { SettlementsPage } from './pages/SettlementsPage';
 import { DriverLedgerPage } from './pages/DriverLedgerPage';
 import { MerchantLedgerPage } from './pages/MerchantLedgerPage';
+
+function AnimatedPage({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  return (
+    <div key={location.pathname} className="page-fade-in">
+      {children}
+    </div>
+  );
+}
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -44,21 +54,23 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/dashboard" element={<ProtectedLayout><DashboardPage /></ProtectedLayout>} />
-        <Route path="/drivers" element={<ProtectedLayout><DriversPage /></ProtectedLayout>} />
-        <Route path="/merchants" element={<ProtectedLayout><MerchantsPage /></ProtectedLayout>} />
-        <Route path="/kiosks" element={<ProtectedLayout><KiosksPage /></ProtectedLayout>} />
-        <Route path="/approvals" element={<ProtectedLayout><ScoreResetApprovalsPage /></ProtectedLayout>} />
-        <Route path="/reports" element={<ProtectedLayout><ReportsPage /></ProtectedLayout>} />
-        <Route path="/map" element={<ProtectedLayout><MapOverviewPage /></ProtectedLayout>} />
-        <Route path="/settlements" element={<ProtectedLayout><SettlementsPage /></ProtectedLayout>} />
-        <Route path="/ledger/drivers" element={<ProtectedLayout><DriverLedgerPage /></ProtectedLayout>} />
-        <Route path="/ledger/merchants" element={<ProtectedLayout><MerchantLedgerPage /></ProtectedLayout>} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <ToastProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/dashboard" element={<ProtectedLayout><AnimatedPage><DashboardPage /></AnimatedPage></ProtectedLayout>} />
+          <Route path="/drivers" element={<ProtectedLayout><AnimatedPage><DriversPage /></AnimatedPage></ProtectedLayout>} />
+          <Route path="/merchants" element={<ProtectedLayout><AnimatedPage><MerchantsPage /></AnimatedPage></ProtectedLayout>} />
+          <Route path="/kiosks" element={<ProtectedLayout><AnimatedPage><KiosksPage /></AnimatedPage></ProtectedLayout>} />
+          <Route path="/approvals" element={<ProtectedLayout><AnimatedPage><ScoreResetApprovalsPage /></AnimatedPage></ProtectedLayout>} />
+          <Route path="/reports" element={<ProtectedLayout><AnimatedPage><ReportsPage /></AnimatedPage></ProtectedLayout>} />
+          <Route path="/map" element={<ProtectedLayout><AnimatedPage><MapOverviewPage /></AnimatedPage></ProtectedLayout>} />
+          <Route path="/settlements" element={<ProtectedLayout><AnimatedPage><SettlementsPage /></AnimatedPage></ProtectedLayout>} />
+          <Route path="/ledger/drivers" element={<ProtectedLayout><AnimatedPage><DriverLedgerPage /></AnimatedPage></ProtectedLayout>} />
+          <Route path="/ledger/merchants" element={<ProtectedLayout><AnimatedPage><MerchantLedgerPage /></AnimatedPage></ProtectedLayout>} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ToastProvider>
   );
 }
