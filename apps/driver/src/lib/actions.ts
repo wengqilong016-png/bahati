@@ -248,7 +248,7 @@ export async function createKioskOnboarding(input: CreateKioskOnboardingInput): 
   const kioskId = row?.kiosk_id;
   const merchantId = row?.merchant_id;
   if (!kioskId || !UUID_RE.test(kioskId) || !merchantId || !UUID_RE.test(merchantId)) {
-    throw new Error('Onboarding created, but kiosk id was not returned by server.');
+    throw new Error('Onboarding created, but required IDs (kiosk/merchant) were not returned by server.');
   }
 
   // Ensure local app can immediately see the new kiosk & onboarding record before next full sync.
