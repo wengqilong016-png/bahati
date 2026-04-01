@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { colors, radius, font, transition } from '../lib/theme';
 import { TableSkeleton } from './Skeleton';
 
@@ -36,6 +36,13 @@ export function DataTable<T extends Record<string, unknown>>({
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
+
+  // Clamp page to valid range whenever rows or pageSize changes
+  useEffect(() => {
+    if (!rows || rows.length === 0) return;
+    const maxPage = Math.max(0, Math.ceil(rows.length / pageSize) - 1);
+    if (page > maxPage) setPage(maxPage);
+  }, [rows?.length, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset page when data changes
   const handleSort = (key: string) => {
@@ -124,7 +131,6 @@ export function DataTable<T extends Record<string, unknown>>({
                   key={String(col.key)}
                   role="columnheader"
                   scope="col"
-                  onClick={col.sortable ? () => handleSort(String(col.key)) : undefined}
                   aria-sort={
                     col.sortable
                       ? sortKey === String(col.key)
@@ -133,20 +139,44 @@ export function DataTable<T extends Record<string, unknown>>({
                       : undefined
                   }
                   style={{
-                    padding: '10px 14px',
+                    padding: col.sortable ? '0' : '10px 14px',
                     textAlign: 'left',
                     fontWeight: font.weights.semibold,
                     color: colors.textSecondary,
                     borderBottom: `2px solid ${colors.border}`,
                     whiteSpace: 'nowrap',
                     width: col.width,
-                    cursor: col.sortable ? 'pointer' : 'default',
-                    userSelect: 'none',
-                    transition: transition.fast,
                   }}
                 >
-                  {col.header}
-                  <SortIcon col={col} />
+                  {col.sortable ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSort(String(col.key))}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '100%',
+                        padding: '10px 14px',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontWeight: font.weights.semibold,
+                        fontSize: 'inherit',
+                        color: 'inherit',
+                        textAlign: 'left',
+                        userSelect: 'none',
+                        transition: transition.fast,
+                      }}
+                    >
+                      {col.header}
+                      <SortIcon col={col} />
+                    </button>
+                  ) : (
+                    <>
+                      {col.header}
+                      <SortIcon col={col} />
+                    </>
+                  )}
                 </th>
               ))}
             </tr>

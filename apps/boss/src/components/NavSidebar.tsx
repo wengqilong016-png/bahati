@@ -458,8 +458,8 @@ export function NavSidebar() {
           .boss-bottom-nav { display: block !important; }
         }
         .nav-item:hover {
-          background-color: #f0f4ff !important;
-          color: #0066CC !important;
+          background-color: ${colors.primaryLight} !important;
+          color: ${colors.primary} !important;
         }
       `}</style>
     </>

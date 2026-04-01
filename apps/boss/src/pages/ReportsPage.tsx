@@ -18,7 +18,9 @@ function BarChart({ data, color }: { data: { label: string; value: number }[]; c
   const [tooltip, setTooltip] = useState<{ label: string; value: number; x: number } | null>(null);
   const max = Math.max(...data.map(d => d.value), 1);
   const W = 100, H = 60, barGap = 4;
-  const barW = Math.max(4, (W - (data.length - 1) * barGap) / data.length);
+  const barW = data.length > 0 ? Math.max(4, (W - (data.length - 1) * barGap) / data.length) : 0;
+
+  if (data.length === 0) return null;
 
   return (
     <div style={{ position: 'relative' }}>
