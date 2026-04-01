@@ -44,7 +44,7 @@ jobs:
       - name: Check Capacitor CLI version
         working-directory: apps/driver
         run: |
-          npx cap --version
+          npm exec cap -- --version
           npm ls @capacitor/cli
 
       - name: Create .env file
@@ -59,7 +59,7 @@ jobs:
 
       - name: Add Android platform
         working-directory: apps/driver
-        run: npx cap add android
+        run: npm run cap:add:android
 
       - name: Generate app icons
         working-directory: apps/driver
@@ -67,7 +67,7 @@ jobs:
 
       - name: Sync Capacitor
         working-directory: apps/driver
-        run: npx cap sync android
+        run: npm exec cap -- sync android
 
       - name: Build debug APK
         working-directory: apps/driver/android
