@@ -47,7 +47,24 @@ export function OnboardKioskPage() {
   const title = isRecert ? 'Re-certification' : 'New Machine Onboarding';
   const submitLabel = isRecert ? 'Submit Re-certification' : 'Submit Onboarding';
 
-  // Pre-fill serial number when a kiosk is selected
+  // Clear mode-specific fields when switching between onboarding and re-certification
+  useEffect(() => {
+    if (isRecert) {
+      setSerialNumber('');
+      setMerchantName('');
+      setMerchantContactName('');
+      setMerchantPhone('');
+      setMerchantAddress('');
+      setLocationName('');
+      setInitialScore('0');
+      setInitialCoinLoan('0');
+    } else {
+      setKioskId('');
+      setSerialNumber('');
+    }
+  }, [isRecert]);
+
+  // Pre-fill serial number when a kiosk is selected in re-certification mode
   useEffect(() => {
     if (!isRecert) return;
     const k = kiosks?.find(kk => kk.id === kioskId);

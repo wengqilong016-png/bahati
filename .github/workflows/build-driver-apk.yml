@@ -55,6 +55,10 @@ jobs:
         working-directory: apps/driver
         run: npx cap add android
 
+      - name: Generate app icons
+        working-directory: apps/driver
+        run: npx @capacitor/assets generate --android
+
       - name: Sync Capacitor
         working-directory: apps/driver
         run: npx cap sync android
@@ -66,6 +70,6 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: smartkiosk-driver-debug
+          name: bahati-driver-debug
           path: apps/driver/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14

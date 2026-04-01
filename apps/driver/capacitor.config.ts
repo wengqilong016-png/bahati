@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.smartkiosk.driver',
-  appName: 'SmartKiosk Driver',
+  appId: 'com.bahati.driver',
+  appName: 'Bahati',
   webDir: 'dist',
   server: {
     androidScheme: 'https',
