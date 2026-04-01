@@ -42,7 +42,7 @@
 | `approve_score_reset` | `p_request_id UUID` | ✅ | 是 | 是（本次复写硬化） | `apps/boss/src/pages/ScoreResetApprovalsPage.tsx` |
 | `reject_score_reset` | `p_request_id UUID, p_reason TEXT` | ✅ | 是 | 是（本次复写硬化） | `apps/boss/src/pages/ScoreResetApprovalsPage.tsx` |
 | `manual_adjustment_driver` | `p_driver_id UUID, p_coin_adj NUMERIC DEFAULT 0, p_cash_adj NUMERIC DEFAULT 0, p_description TEXT DEFAULT NULL` | ✅ | 是 | 是 | 未检出前端直调 |
-| `driver_create_onboarding_bundle`（额外） | `p_merchant_name TEXT, p_kiosk_serial_number TEXT, p_kiosk_location_name TEXT, p_onboarding_id UUID DEFAULT gen_random_uuid(), p_merchant_contact_name TEXT DEFAULT NULL, p_merchant_phone TEXT DEFAULT NULL, p_merchant_address TEXT DEFAULT NULL, p_kiosk_initial_score INTEGER DEFAULT 0, p_initial_coin_loan NUMERIC DEFAULT 0, p_photo_urls TEXT[] DEFAULT '{}', p_notes TEXT DEFAULT NULL` | ✅ | **否（缺失）** | **否（缺失）** | `apps/driver/src/lib/actions.ts` |
+| `driver_create_onboarding_bundle`（额外） | `p_merchant_name TEXT, p_kiosk_serial_number TEXT, p_kiosk_location_name TEXT, p_onboarding_id UUID DEFAULT gen_random_uuid(), p_merchant_contact_name TEXT DEFAULT NULL, p_merchant_phone TEXT DEFAULT NULL, p_merchant_address TEXT DEFAULT NULL, p_kiosk_initial_score INTEGER DEFAULT 0, p_initial_coin_loan NUMERIC DEFAULT 0, p_photo_urls TEXT[] DEFAULT '{}', p_notes TEXT DEFAULT NULL` | ✅ | 是 | 是 | `apps/driver/src/lib/actions.ts` |
 | `read_merchant_balances`（额外） | 无 | ✅ | 是 | 是 | `apps/boss/src/pages/MerchantsPage.tsx`, `DashboardPage.tsx` |
 | `read_driver_balances`（额外） | `p_driver_id UUID DEFAULT NULL` | ✅ | 是 | 是 | 当前前端未检出调用 |
 
