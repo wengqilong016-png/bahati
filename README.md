@@ -2,7 +2,60 @@
 
 Offline-first kiosk management system for field operations, financial settlement, debt management, and approval workflows.
 
-## Architecture
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Supabase (Cloud)                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
+│  │  PostgreSQL  │  │  Auth (JWT)  │  │  Storage (S3-like)   │  │
+│  │  + RLS/RPC   │  │  anon key    │  │  task-photos         │  │
+│  └──────────────┘  └──────────────┘  │  onboarding-photos   │  │
+│                                       └──────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+          ▲  REST / Realtime                   ▲ Upload / URL
+          │                                    │
+  ┌───────┴──────────┐              ┌──────────┴──────────┐
+  │   Driver App      │              │   Boss Dashboard    │
+  │  (Android APK)    │              │   (Web, tablet+PC)  │
+  │                   │              │                     │
+  │  React + Dexie    │              │  React + Supabase   │
+  │  + Capacitor      │              │  (online-only)      │
+  │                   │              │                     │
+  │  ┌─────────────┐  │              └─────────────────────┘
+  │  │  IndexedDB  │  │
+  │  │ (Dexie schema v5) │ │
+  │  └─────────────┘  │
+  └───────────────────┘
+```
+
+### Driver App Data Flow
+
+```
+startSync()
+  │
+  ├─ pullKiosks()            ← server → Dexie (kiosks)
+  ├─ pullTasks()             ← server → Dexie (tasks + settlement fields)
+  ├─ pullReconciliations()   ← server → Dexie (daily_driver_reconciliations)
+  ├─ pullScoreResetRequests()← server → Dexie (score_reset_requests)
+  ├─ pullOnboardingRecords() ← server → Dexie (kiosk_onboarding_records)
+  ├─ retryPendingUploads()   ← localStorage queue → Supabase Storage
+  └─ processQueue()          ← Dexie sync_queue → server upserts
+```
+
+### Key Design Decisions
+
+| Concern | Decision |
+|---------|----------|
+| Offline-first | All user actions write to IndexedDB (Dexie) first; a `sync_queue` table buffers server writes |
+| Auth | Supabase JWT; `drivers` role = row in `public.drivers`; `boss` role = `raw_user_meta_data->>'role'` |
+| RLS | Drivers can only read/write their own data; bosses use `is_boss()` guard + SECURITY DEFINER RPCs |
+| Photo upload | Compressed to ≤ 2 MB JPEG, stored in Supabase Storage; path: `{driver_id}/{date}/{taskId}/{ts}.jpg` |
+| Score validation | Tasks must have `current_score > last_recorded_score`; resets require boss approval |
+| Settlement | `record_task_settlement` RPC is called online; Dexie is updated optimistically |
+| Daily close | `submit_daily_reconciliation` RPC computes all totals server-side; driver only enters actual cash/coin |
+
+## Repository Layout
 
 ```
 /
@@ -94,6 +147,90 @@ npm run cap:add:android    # first time only
 npm run cap:sync
 npm run cap open android  # opens Android Studio → Build → Generate APK
 ```
+
+### Driver App — Daily Workflow Guide
+
+Below is the step-by-step workflow a driver follows each day using the app.
+
+#### 1. Sign In
+- Open the app and sign in with your email and password.
+- If there is a connection problem a coloured banner will appear at the top of the login screen explaining the issue.
+
+#### 2. Sync Data (Home screen)
+- Tap **🔄 Sync** in the bottom navigation bar (or use the Sync page).
+- The app downloads the latest kiosk list, tasks, and approval results from the server.
+- A badge shows the number of items waiting to be uploaded.
+
+#### 3. Submit a Daily Task
+1. Tap **Kiosks** in the bottom nav to see your assigned kiosks.
+2. Tap any kiosk row to open its **Daily Task** form.
+3. Enter the **Current Score** shown on the machine display.
+   - The score must be greater than the last recorded score.
+   - If the machine was reset, submit a **Score Reset Request** instead (button appears automatically when the score is too low).
+4. Add **Notes** (optional) and take at least one photo with **📷 Camera** or **🖼 Gallery**.
+5. Tap **Submit Task**. The task is saved locally and synced immediately.
+
+#### 4. Settle a Task
+After submitting daily tasks, tap **Settlement** in the bottom nav:
+1. Each kiosk task shows as **🟡 Pending**.
+2. For each task, fill in:
+   - **Token Exchange Amount** — coins exchanged for cash today (KES).
+   - **Expense Amount** — any expenses paid out at the kiosk (KES).
+   - **Expense Note** — brief description of the expense (optional).
+   - **Dividend Method** — choose *Cash Withdrawal* or *Retained*.
+3. Tap **Confirm Settlement**.
+4. When all tasks show **✅ Settled**, a button appears to go to the Daily Close.
+
+#### 5. Submit Daily Close (Reconciliation)
+Tap **Daily Close** in the bottom nav (or follow the prompt from the Settlement page):
+1. Review the list of settled tasks and their totals.
+2. Enter your **Actual Coin Balance** — count the physical coins/tokens in hand (KES).
+3. Enter your **Actual Cash Balance** — count the physical cash in hand (KES).
+4. Add optional **Notes**.
+5. Tap **Submit Daily Close**.
+6. The server calculates variances automatically; a confirmed record is returned.
+
+#### 6. Request a Score Reset
+If a machine's score has been physically reset (e.g. power failure, maintenance):
+1. Navigate to the kiosk via **Kiosks** → tap kiosk → score field will show a validation error.
+2. Tap **Submit Score Reset Request Instead**.
+3. Enter the **Requested New Score** (must be lower than the current recorded score).
+4. Enter a **Reason** explaining why the reset is needed.
+5. Tap **Submit Reset Request**.  
+6. The request is sent to the boss for approval. You will see the status (Pending / Approved / Rejected) on the same screen next time you open it.
+
+#### 7. Onboard a New Machine
+When installing a brand-new kiosk at a merchant location:
+1. Tap **➕ Onboard** in the bottom nav.
+2. Choose **➕ Onboarding** (not Re-certification).
+3. Select the kiosk from the dropdown (the boss must have created the kiosk record first).
+4. **Edit the Serial Number** if the number printed on the machine differs from what was pre-configured — this field is pre-filled from the database but can be corrected on-site.
+5. Enter the **Initial Score Reading** shown on the machine display at time of installation.
+6. Take at least one installation photo.
+7. Tap **Submit Onboarding**. The serial number and initial score are recorded and queued for server sync.
+
+#### 8. Re-certify an Existing Machine
+Use re-certification when a machine undergoes periodic inspection:
+1. Tap **➕ Onboard** → choose **🔄 Re-certification**.
+2. Select the kiosk and add any notes or photos.
+3. Tap **Submit Re-certification**.
+
+#### Bottom Navigation Reference
+
+| Tab | Icon | Purpose |
+|-----|------|---------|
+| Home | 🏠 | Quick status + last sync time |
+| Kiosks | 🏪 | List of assigned kiosks; tap to open daily task |
+| Onboard | ➕ | New machine onboarding or re-certification |
+| Settlement | 💰 | Settle individual kiosk tasks |
+| Daily Close | 📋 | Submit end-of-day reconciliation |
+| Sync | 🔄 | Manually trigger sync; shows pending queue count |
+
+#### Offline Usage Notes
+- All data is saved locally first (IndexedDB). You can work without internet.
+- When connectivity returns, pending items sync automatically on the next **Sync** action.
+- Photos that fail to upload are queued in localStorage and retried automatically.
+- A status dot in the top bar shows: green = connected, orange = network error, red = config error.
 
 ## Boss Dashboard (apps/boss)
 

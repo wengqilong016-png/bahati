@@ -63,7 +63,7 @@ export function PhotoCapture({
       URL.revokeObjectURL(previewUrl);
       onPhotosChange([...photosRef.current, url]);
     } catch (err) {
-      const error = err instanceof Error ? err.message : '上传失败';
+      const error = err instanceof Error ? err.message : 'Upload failed';
       setUploading(prev =>
         prev.map(u => (u.id === id ? { ...u, status: 'error' as const, error } : u)),
       );
@@ -89,7 +89,7 @@ export function PhotoCapture({
         URL.revokeObjectURL(item.previewUrl);
         onPhotosChange([...photosRef.current, url]);
       } catch (err) {
-        const error = err instanceof Error ? err.message : '上传失败';
+        const error = err instanceof Error ? err.message : 'Upload failed';
         setUploading(prev =>
           prev.map(u => (u.id === item.id ? { ...u, status: 'error' as const, error } : u)),
         );
@@ -126,7 +126,7 @@ export function PhotoCapture({
           onClick={() => cameraInputRef.current?.click()}
           style={{ ...btnBase, background: (disabled || atLimit) ? '#ccc' : '#0066CC' }}
         >
-          📷 拍照
+          📷 Camera
         </button>
         <button
           type="button"
@@ -134,7 +134,7 @@ export function PhotoCapture({
           onClick={() => galleryInputRef.current?.click()}
           style={{ ...btnBase, background: (disabled || atLimit) ? '#ccc' : '#555' }}
         >
-          🖼 相册
+          🖼 Gallery
         </button>
         {maxPhotos > 0 && (
           <span style={{ fontSize: 12, color: '#888', alignSelf: 'center' }}>
@@ -168,7 +168,7 @@ export function PhotoCapture({
             <div key={url} style={{ position: 'relative', width: 72, height: 72 }}>
               <img
                 src={url}
-                alt={`照片 ${i + 1}`}
+                alt={`Photo ${i + 1}`}
                 style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd' }}
               />
               {!disabled && (
@@ -182,7 +182,7 @@ export function PhotoCapture({
                     cursor: 'pointer', fontSize: 11, lineHeight: '20px',
                     padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
-                  title="删除"
+                  title="Remove"
                 >
                   ✕
                 </button>
@@ -195,7 +195,7 @@ export function PhotoCapture({
             <div key={item.id} style={{ position: 'relative', width: 72, height: 72 }}>
               <img
                 src={item.previewUrl}
-                alt="上传中"
+                alt="Uploading"
                 style={{
                   width: 72, height: 72, objectFit: 'cover', borderRadius: 6,
                   border: `1px solid ${item.status === 'error' ? '#c62828' : '#0066CC'}`,
@@ -209,7 +209,7 @@ export function PhotoCapture({
                   background: 'rgba(0,0,0,0.3)', borderRadius: 6,
                   color: '#fff', fontSize: 10,
                 }}>
-                  上传中…
+                  Uploading…
                 </div>
               )}
               {item.status === 'error' && (
@@ -220,7 +220,7 @@ export function PhotoCapture({
                     background: 'rgba(198,40,40,0.7)', borderRadius: 6,
                     color: '#fff', fontSize: 9, padding: 2, textAlign: 'center',
                   }}>
-                    <span>失败</span>
+                    <span>Failed</span>
                     <button
                       type="button"
                       onClick={() => retryUpload(item)}
@@ -230,7 +230,7 @@ export function PhotoCapture({
                         cursor: 'pointer', padding: '1px 4px',
                       }}
                     >
-                      重试
+                      Retry
                     </button>
                   </div>
                   <button
@@ -243,7 +243,7 @@ export function PhotoCapture({
                       cursor: 'pointer', fontSize: 11, lineHeight: '20px',
                       padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
-                    title="删除"
+                    title="Remove"
                   >
                     ✕
                   </button>

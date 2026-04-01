@@ -40,7 +40,7 @@ export async function saveDailyTask(input: SaveDailyTaskInput): Promise<void> {
     .first();
 
   if (existingTask?.settlement_status === 'settled') {
-    throw new Error('该机台今日任务已结算，不可修改');
+    throw new Error('This kiosk has already been settled today and cannot be modified.');
   }
 
   const id = input.id ?? existingTask?.id ?? crypto.randomUUID();
@@ -173,6 +173,63 @@ export async function saveOnboarding(input: SaveOnboardingInput): Promise<void> 
         photo_urls: input.photoUrls,
         notes: input.notes,
       }),
+      retry_count: 0,
+      last_error: null,
+      created_at: now,
+    });
+  });
+}
+
+// ---- Kiosk Details Update (serial number + initial score) ----
+
+export interface UpdateKioskDetailsInput {
+  kioskId: string;
+  /** Updated serial number (if the driver corrected it on-site). */
+  serialNumber?: string;
+  /** Initial score reading at time of installation / onboarding. */
+  initialScore?: number;
+}
+
+/**
+ * Update local kiosk serial_number and/or last_recorded_score and queue the
+ * change for server sync.  Used during new-machine onboarding when the driver
+ * corrects the serial number or records the initial score from the machine
+ * display.
+ */
+export async function updateKioskDetails(input: UpdateKioskDetailsInput): Promise<void> {
+  if (!UUID_RE.test(input.kioskId)) {
+    throw new Error('Invalid kiosk ID.');
+  }
+  if (input.serialNumber !== undefined && input.serialNumber.trim() === '') {
+    throw new Error('Serial number cannot be blank.');
+  }
+  if (input.initialScore !== undefined && (input.initialScore < 0 || !Number.isFinite(input.initialScore))) {
+    throw new Error('Initial score must be a non-negative number.');
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (input.serialNumber !== undefined) updates.serial_number = input.serialNumber.trim();
+  if (input.initialScore !== undefined) updates.last_recorded_score = input.initialScore;
+
+  if (Object.keys(updates).length === 0) return;
+
+  const now = new Date().toISOString();
+
+  await db.transaction('rw', [db.kiosks, db.sync_queue], async () => {
+    const modified = await db.kiosks.update(input.kioskId, updates);
+
+    // Only enqueue a server sync when the local row actually existed and was updated.
+    // If modified === 0 the kiosk isn't in the local DB yet; queueing an UPDATE
+    // would create an orphan sync item that would fail repeatedly on the server.
+    if (modified === 0) {
+      throw new Error('Kiosk not found in local database. Please sync first before updating kiosk details.');
+    }
+
+    await db.sync_queue.add({
+      table_name: 'kiosks',
+      record_id: input.kioskId,
+      operation: 'update',
+      payload: JSON.stringify({ id: input.kioskId, ...updates }),
       retry_count: 0,
       last_error: null,
       created_at: now,

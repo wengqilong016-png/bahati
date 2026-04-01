@@ -30,8 +30,8 @@ export async function submitDailyReconciliation(
     p_notes,
   } = params;
 
-  if (p_actual_coin_balance < 0) throw new Error('实际硬币余额不能为负数');
-  if (p_actual_cash_balance < 0) throw new Error('实际现金余额不能为负数');
+  if (p_actual_coin_balance < 0) throw new Error('Actual coin balance cannot be negative.');
+  if (p_actual_cash_balance < 0) throw new Error('Actual cash balance cannot be negative.');
 
   const { data, error } = await supabase.rpc('submit_daily_reconciliation', {
     p_driver_id: p_driver_id ?? null,
@@ -42,7 +42,7 @@ export async function submitDailyReconciliation(
   });
 
   if (error) {
-    throw new Error(error.message || '日结提交失败，请重试');
+    throw new Error(error.message || 'Daily close submission failed. Please try again.');
   }
 
   // Store locally so the UI can show submitted state offline

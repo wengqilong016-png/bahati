@@ -40,21 +40,21 @@ function SettledCard({ task, kiosk }: SettledCardProps) {
         <span style={{ fontWeight: 600, fontSize: 14 }}>
           {kiosk?.serial_number ?? '—'} · {kiosk?.merchant_name ?? '—'}
         </span>
-        <span style={{ background: '#1e7e34', color: '#fff', borderRadius: 12, padding: '2px 10px', fontSize: 12 }} aria-label="已结算">✅ 已结算</span>
+        <span style={{ background: '#1e7e34', color: '#fff', borderRadius: 12, padding: '2px 10px', fontSize: 12 }} aria-label="Settled">✅ Settled</span>
       </div>
       <div style={{ fontSize: 13, color: '#444', lineHeight: 1.8 }}>
-        <div>分数: {task.score_before ?? '—'} → {task.current_score}</div>
-        {grossRevenue !== undefined && <div>营业额: ¥{grossRevenue.toLocaleString()}</div>}
+        <div>Score: {task.score_before ?? '—'} → {task.current_score}</div>
+        {grossRevenue !== undefined && <div>Revenue: KES {grossRevenue.toLocaleString()}</div>}
         {dividendAmount !== undefined && (
           <div>
-            分红 ({task.dividend_rate_snapshot !== undefined ? `${(task.dividend_rate_snapshot * 100).toFixed(0)}%` : '—'}):
-            ¥{dividendAmount.toLocaleString()}
+            Dividend ({task.dividend_rate_snapshot !== undefined ? `${(task.dividend_rate_snapshot * 100).toFixed(0)}%` : '—'}):
+            KES {dividendAmount.toLocaleString()}
           </div>
         )}
-        <div>分红方式: {task.dividend_method === 'cash' ? '现金提取' : task.dividend_method === 'retained' ? '留存' : '—'}</div>
-        {task.exchange_amount !== undefined && <div>换币金额: ¥{task.exchange_amount.toLocaleString()}</div>}
+        <div>Dividend method: {task.dividend_method === 'cash' ? 'Cash withdrawal' : task.dividend_method === 'retained' ? 'Retained' : '—'}</div>
+        {task.exchange_amount !== undefined && <div>Exchange amount: KES {task.exchange_amount.toLocaleString()}</div>}
         {task.expense_amount !== undefined && task.expense_amount > 0 && (
-          <div>支出金额: ¥{task.expense_amount.toLocaleString()}{task.expense_note ? ` (${task.expense_note})` : ''}</div>
+          <div>Expense: KES {task.expense_amount.toLocaleString()}{task.expense_note ? ` (${task.expense_note})` : ''}</div>
         )}
       </div>
     </div>
@@ -88,7 +88,7 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
     const exAmt = parseFloat(exchangeAmount) || 0;
     const expAmt = parseFloat(expenseAmount) || 0;
     if (exAmt < 0 || expAmt < 0) {
-      setError('金额不能为负数');
+      setError('Amounts cannot be negative');
       return;
     }
     setSubmitting(true);
@@ -102,7 +102,7 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
       });
       onSettled();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '结算失败，请重试';
+      const msg = err instanceof Error ? err.message : 'Settlement failed. Please try again.';
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -123,7 +123,7 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
         <span style={{ fontWeight: 700, fontSize: 15 }}>
           {kiosk?.serial_number ?? '—'} · {kiosk?.merchant_name ?? '—'}
         </span>
-        <span style={{ background: '#fff9c4', color: '#f57f17', borderRadius: 12, padding: '2px 10px', fontSize: 12, border: '1px solid #ffe082' }} aria-label="待结算">🟡 待结算</span>
+        <span style={{ background: '#fff9c4', color: '#f57f17', borderRadius: 12, padding: '2px 10px', fontSize: 12, border: '1px solid #ffe082' }} aria-label="Pending settlement">🟡 Pending</span>
       </div>
 
       {error && (
@@ -140,31 +140,31 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
       <form onSubmit={handleSubmit}>
         {/* Read-only info */}
         <div style={{ marginBottom: 10 }}>
-          <label style={labelStyle}>分数变化</label>
+          <label style={labelStyle}>Score Change</label>
           <input readOnly value={`${task.score_before ?? '—'} → ${task.current_score}`} style={readonlyStyle} />
         </div>
         {grossRevenue !== undefined && (
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>营业额</label>
-            <input readOnly value={`¥${grossRevenue.toLocaleString()}`} style={readonlyStyle} />
+            <label style={labelStyle}>Gross Revenue (KES)</label>
+            <input readOnly value={`KES ${grossRevenue.toLocaleString()}`} style={readonlyStyle} />
           </div>
         )}
         {task.dividend_rate_snapshot !== undefined && (
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>分红比例</label>
+            <label style={labelStyle}>Dividend Rate</label>
             <input readOnly value={`${(task.dividend_rate_snapshot * 100).toFixed(0)}%`} style={readonlyStyle} />
           </div>
         )}
         {dividendAmount !== undefined && (
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>分红金额</label>
-            <input readOnly value={`¥${dividendAmount.toLocaleString()}`} style={readonlyStyle} />
+            <label style={labelStyle}>Dividend Amount (KES)</label>
+            <input readOnly value={`KES ${dividendAmount.toLocaleString()}`} style={readonlyStyle} />
           </div>
         )}
 
         {/* Dividend method */}
         <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>分红方式</label>
+          <label style={labelStyle}>Dividend Method</label>
           <div style={{ display: 'flex', gap: 16 }}>
             {(['cash', 'retained'] as const).map(m => (
               <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
@@ -175,7 +175,7 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
                   checked={dividendMethod === m}
                   onChange={() => setDividendMethod(m)}
                 />
-                {m === 'cash' ? '现金提取 (Cash)' : '留存 (Retained)'}
+                {m === 'cash' ? 'Cash Withdrawal' : 'Retained'}
               </label>
             ))}
           </div>
@@ -183,7 +183,7 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
 
         {/* Exchange amount */}
         <div style={{ marginBottom: 10 }}>
-          <label style={labelStyle}>换币金额</label>
+          <label style={labelStyle}>Token Exchange Amount (KES)</label>
           <input
             type="number"
             min={0}
@@ -196,7 +196,7 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
 
         {/* Expense amount */}
         <div style={{ marginBottom: 10 }}>
-          <label style={labelStyle}>支出金额</label>
+          <label style={labelStyle}>Expense Amount (KES)</label>
           <input
             type="number"
             min={0}
@@ -209,12 +209,12 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
 
         {/* Expense note */}
         <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>支出备注 <span style={{ fontWeight: 400, color: '#888' }}>(可选)</span></label>
+          <label style={labelStyle}>Expense Note <span style={{ fontWeight: 400, color: '#888' }}>(optional)</span></label>
           <input
             type="text"
             value={expenseNote}
             onChange={e => setExpenseNote(e.target.value)}
-            placeholder="请输入备注..."
+            placeholder="Enter expense note..."
             style={inputStyle}
           />
         </div>
@@ -224,7 +224,7 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
           disabled={submitting}
           style={{ width: '100%', padding: 14, background: submitting ? '#ccc' : '#0066CC', color: '#fff', border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}
         >
-          {submitting ? '提交中...' : '确认结算'}
+          {submitting ? 'Submitting...' : 'Confirm Settlement'}
         </button>
       </form>
     </div>
@@ -267,20 +267,20 @@ export function SettlementPage() {
   return (
     <div style={{ padding: '16px 16px 80px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2 style={{ margin: 0, color: '#0066CC' }}>今日结算</h2>
+        <h2 style={{ margin: 0, color: '#0066CC' }}>Today's Settlements</h2>
         <button
           onClick={handleRefresh}
           disabled={syncing}
           style={{ background: 'none', border: '1px solid #0066CC', color: '#0066CC', borderRadius: 6, padding: '6px 12px', fontSize: 13, cursor: syncing ? 'not-allowed' : 'pointer', opacity: syncing ? 0.6 : 1 }}
         >
-          {syncing ? '同步中...' : '🔄 刷新'}
+          {syncing ? 'Syncing...' : '🔄 Refresh'}
         </button>
       </div>
 
       {/* Pending tasks */}
       {pendingTasks.length > 0 ? (
         <>
-          <h3 style={{ margin: '0 0 12px', fontSize: 14, color: '#555', fontWeight: 600 }}>待结算任务</h3>
+          <h3 style={{ margin: '0 0 12px', fontSize: 14, color: '#555', fontWeight: 600 }}>Pending Tasks</h3>
           {pendingTasks.map(task => (
             <SettlementForm
               key={task.id}
@@ -292,20 +292,20 @@ export function SettlementPage() {
         </>
       ) : (
         <div style={{ background: '#f5f5f5', borderRadius: 8, padding: 16, textAlign: 'center', color: '#888', marginBottom: 16 }}>
-          <p style={{ margin: 0, fontSize: 14 }}>今日暂无待结算任务</p>
+          <p style={{ margin: 0, fontSize: 14 }}>No pending tasks today.</p>
         </div>
       )}
 
       {/* All tasks settled — prompt to go to daily reconciliation */}
       {tasks !== undefined && allTasks.length > 0 && pendingTasks.length === 0 && (
         <div style={{ background: '#e6f4ea', border: '1px solid #a5d6a7', borderRadius: 8, padding: 16, marginBottom: 16, textAlign: 'center' }}>
-          <p style={{ margin: '0 0 10px', fontSize: 14, color: '#1e7e34', fontWeight: 600 }}>✅ 所有任务已结算！</p>
+          <p style={{ margin: '0 0 10px', fontSize: 14, color: '#1e7e34', fontWeight: 600 }}>✅ All tasks settled!</p>
           <button
             type="button"
             onClick={() => navigate('/reconciliation')}
             style={{ background: '#0066CC', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
           >
-            📋 前往日结
+            📋 Go to Daily Close
           </button>
         </div>
       )}
@@ -313,7 +313,7 @@ export function SettlementPage() {
       {/* Settled tasks */}
       {settledTasks.length > 0 && (
         <>
-          <h3 style={{ margin: '16px 0 12px', fontSize: 14, color: '#555', fontWeight: 600 }}>已结算任务</h3>
+          <h3 style={{ margin: '16px 0 12px', fontSize: 14, color: '#555', fontWeight: 600 }}>Settled Tasks</h3>
           {settledTasks.map(task => (
             <SettledCard
               key={task.id}
