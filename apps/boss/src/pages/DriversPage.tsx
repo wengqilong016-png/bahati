@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { fmtCurrency } from '../lib/format';
 import { getTodayDarEsSalaam } from '../lib/utils';
@@ -45,7 +45,7 @@ export function DriversPage() {
   const [editForm, setEditForm] = useState<EditDriverForm>({ full_name: '', phone: '', license_plate: '', is_active: true });
   const [saving, setSaving] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     const today = getTodayDarEsSalaam();
     const [driversRes, reconcRes] = await Promise.all([
@@ -62,11 +62,11 @@ export function DriversPage() {
     }
     setReconcMap(map);
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     void fetchData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchData]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {

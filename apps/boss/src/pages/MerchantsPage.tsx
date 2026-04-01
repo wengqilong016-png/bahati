@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { fmtCurrency, fmtPercent } from '../lib/format';
 import { colors, radius, shadow, font } from '../lib/theme';
@@ -44,7 +44,7 @@ export function MerchantsPage() {
   const [editForm, setEditForm] = useState<EditMerchantForm>({ name: '', contact_name: '', phone: '', address: '', is_active: true, dividend_rate: '0' });
   const [saving, setSaving] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
 
     const [merchantsRes, kiosksRes, balancesRes] = await Promise.all([
@@ -75,11 +75,11 @@ export function MerchantsPage() {
     }
     setKioskCounts(counts);
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     void fetchData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchData]);
 
   const openEdit = (m: Merchant) => {
     setEditMerchant(m);

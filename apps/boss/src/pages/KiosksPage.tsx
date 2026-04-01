@@ -190,7 +190,7 @@ export function KiosksPage() {
             onClick={() => void openPhotos(row as unknown as Kiosk)}
             style={{ padding: '4px 10px', fontSize: 12, background: colors.infoLight, color: colors.info, border: 'none', borderRadius: radius.sm, cursor: 'pointer', fontWeight: 600 }}
           >
-            �� 照片
+            📷 照片
           </button>
         </div>
       ),
