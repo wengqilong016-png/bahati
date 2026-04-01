@@ -8,4 +8,4 @@
 
 ## 受影响页面（负向检测）
 - 本次扫描未发现前端页面直接使用 `machines/machine_onboardings/daily_settlements` 旧名；旧名主要位于历史 migration 与 Dexie 旧版本删除逻辑。  
-- driver 端当前余额 UI 差异（非旧名问题）：`HomePage`/`ReconciliationPage` 尚未提供独立 Wallet Card（coin/cash + 最近 confirmed），建议纳入后续 Stage 5。 
+- driver 端当前余额 UI 差异（非旧名问题）：`HomePage`/`ReconciliationPage` 尚未提供独立 Wallet Card（coin/cash + 最近 confirmed），建议按 `docs/stage1_7_execution_tasks.md` 纳入 Stage 1（覆盖 UI + 本地缓存），Stage 5 专注 RLS/权限回归。 
