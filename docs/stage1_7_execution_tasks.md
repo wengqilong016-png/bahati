@@ -3,7 +3,7 @@
 ## Stage 1 — Driver Wallet 同步闭环（Phase2 收尾）
 **目标**：补齐 driver 余额可见性与本地缓存。  
 **任务**：
-- [ ] `apps/driver/src/lib/sync.ts` 新增 `pullDriverProfile()`：拉取 `drivers.coin_balance,cash_balance,updated_at`；若列权限限制则回退 `rpc('read_driver_balances')`。
+- [ ] apps/driver/src/lib/sync.ts 新增 pullDriverProfile()：拉取 drivers.coin_balance,cash_balance,updated_at（若列权限限制则回退 rpc('read_driver_balances')），并拉取最新已确认的日结记录以更新 confirmed 余额。
 - [ ] apps/driver/src/lib/db.ts Dexie version bump（v6）：新增 driver_profile store（id, full_name, coin_balance, cash_balance, last_confirmed_coin, last_confirmed_cash, sync_status, updated_at）。
 - [ ] `apps/driver/src/pages/HomePage.tsx` 或 `ReconciliationPage.tsx` 增加 Wallet Card（在线值 + 最近 confirmed 值）。
 - [ ] 增加错误态文案：离线、无权限、未初始化；每种状态有重试按钮。
