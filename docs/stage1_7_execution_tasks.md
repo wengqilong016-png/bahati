@@ -45,7 +45,7 @@
 **目标**：照片保留策略落地。  
 **任务**：
 - [ ] 文档化策略：onboarding 长期、reset-request 中期、task 短期。
-- [ ] 若未指定具体 TTL，默认提案：task 7~30 天、reset-request 30~90 天。
+- [ ] 若未指定具体 TTL，默认提案：task 7~30 天、reset-request 30~90 天、onboarding 长期归档。
 - [ ] 提供清理脚本/定时任务（Edge Function + cron）。
 - [ ] 验证 DB 仅存 path/url，不存 base64。
 
