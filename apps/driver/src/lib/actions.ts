@@ -227,13 +227,13 @@ export async function createKioskOnboarding(input: CreateKioskOnboardingInput): 
 
   const onboardingId = input.onboardingId ?? crypto.randomUUID();
   const { data, error } = await supabase.rpc('driver_create_onboarding_bundle', {
-    p_onboarding_id: onboardingId,
     p_merchant_name: input.merchantName.trim(),
+    p_kiosk_serial_number: input.kioskSerialNumber.trim(),
+    p_kiosk_location_name: input.kioskLocationName.trim(),
+    p_onboarding_id: onboardingId,
     p_merchant_contact_name: input.merchantContactName?.trim() || null,
     p_merchant_phone: input.merchantPhone?.trim() || null,
     p_merchant_address: input.merchantAddress?.trim() || null,
-    p_kiosk_serial_number: input.kioskSerialNumber.trim(),
-    p_kiosk_location_name: input.kioskLocationName.trim(),
     p_kiosk_initial_score: input.initialScore,
     p_initial_coin_loan: input.initialCoinLoan,
     p_photo_urls: input.photoUrls,

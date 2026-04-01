@@ -3,13 +3,13 @@
 -- Also optionally records initial coin loan as merchant debt (initial_coins).
 
 CREATE OR REPLACE FUNCTION public.driver_create_onboarding_bundle(
-  p_onboarding_id UUID DEFAULT gen_random_uuid(),
   p_merchant_name TEXT,
+  p_kiosk_serial_number TEXT,
+  p_kiosk_location_name TEXT,
+  p_onboarding_id UUID DEFAULT gen_random_uuid(),
   p_merchant_contact_name TEXT DEFAULT NULL,
   p_merchant_phone TEXT DEFAULT NULL,
   p_merchant_address TEXT DEFAULT NULL,
-  p_kiosk_serial_number TEXT,
-  p_kiosk_location_name TEXT,
   p_kiosk_initial_score INTEGER DEFAULT 0,
   p_initial_coin_loan NUMERIC DEFAULT 0,
   p_photo_urls TEXT[] DEFAULT '{}',
@@ -150,5 +150,5 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.driver_create_onboarding_bundle(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, NUMERIC, TEXT[], TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.driver_create_onboarding_bundle(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, NUMERIC, TEXT[], TEXT) TO authenticated;
+REVOKE ALL ON FUNCTION public.driver_create_onboarding_bundle(TEXT, TEXT, TEXT, UUID, TEXT, TEXT, TEXT, INTEGER, NUMERIC, TEXT[], TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.driver_create_onboarding_bundle(TEXT, TEXT, TEXT, UUID, TEXT, TEXT, TEXT, INTEGER, NUMERIC, TEXT[], TEXT) TO authenticated;
