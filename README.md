@@ -24,7 +24,7 @@ Offline-first kiosk management system for field operations, financial settlement
   │                   │              │                     │
   │  ┌─────────────┐  │              └─────────────────────┘
   │  │  IndexedDB  │  │
-  │  │  (Dexie v5) │  │
+  │  │ (Dexie schema v5) │ │
   │  └─────────────┘  │
   └───────────────────┘
 ```
