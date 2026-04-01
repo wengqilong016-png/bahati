@@ -271,13 +271,3 @@ export function ReportsPage() {
   );
 }
 
-interface DailyReport {
-  date: string;
-  totalRevenue: number;
-  totalExchange: number;
-  totalExpense: number;
-  totalDividendCash: number;
-  totalDividendRetained: number;
-  tasksCount: number;
-}
-

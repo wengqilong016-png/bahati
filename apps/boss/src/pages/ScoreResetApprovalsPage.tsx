@@ -282,17 +282,3 @@ export function ScoreResetApprovalsPage() {
   );
 }
 
-interface ScoreResetRequest {
-  id: string;
-  kiosk_id: string;
-  driver_id: string;
-  current_score: number;
-  requested_new_score: number;
-  reason: string;
-  status: string;
-  rejection_reason: string | null;
-  created_at: string;
-  kiosks: { serial_number: string; merchants: { name: string } | null } | null;
-  drivers: { full_name: string | null } | null;
-}
-

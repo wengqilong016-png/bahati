@@ -220,20 +220,3 @@ export function MerchantsPage() {
   );
 }
 
-interface Merchant {
-  id: string;
-  name: string;
-  contact_name: string | null;
-  phone: string | null;
-  address: string | null;
-  is_active: boolean;
-  dividend_rate: number;
-  retained_balance: number;
-  debt_balance: number;
-  created_at: string;
-}
-
-interface KioskRow {
-  merchant_id: string;
-}
-

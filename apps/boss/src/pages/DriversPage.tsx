@@ -261,21 +261,3 @@ export function DriversPage() {
   );
 }
 
-interface Driver {
-  id: string;
-  full_name: string;
-  phone: string | null;
-  license_plate: string | null;
-  is_active: boolean;
-  coin_balance: number;
-  cash_balance: number;
-  created_at: string;
-}
-
-interface ReconciliationStatus {
-  driver_id: string;
-  status: string;
-  coin_variance: number;
-  cash_variance: number;
-}
-
