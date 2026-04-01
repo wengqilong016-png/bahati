@@ -45,8 +45,8 @@ export function LoginPage() {
         <h1 style={{ color: '#0066CC', margin: '0 0 8px', fontSize: 24 }}>SmartKiosk</h1>
         <p style={{ color: '#666', margin: '0 0 24px', fontSize: 14 }}>Driver App</p>
 
-        {/* Connection status badge */}
-        {connStatus !== 'connected' && (
+        {/* Connection status badge – only shown for actionable error states */}
+        {(connStatus === 'config-error' || connStatus === 'network-error') && (
           <div style={{
             display: 'flex',
             alignItems: 'flex-start',
@@ -60,14 +60,12 @@ export function LoginPage() {
             color: connStatus === 'config-error' ? '#c62828' : '#856404',
           }}>
             <span style={{ fontSize: 16, lineHeight: 1 }}>
-              {connStatus === 'config-error' ? '⚠️' : connStatus === 'network-error' ? '🔴' : '⏳'}
+              {connStatus === 'config-error' ? '🔴' : '🟠'}
             </span>
             <span>
               {connStatus === 'config-error'
                 ? '后端配置缺失：请在部署平台将环境变量名称改为 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY。'
-                : connStatus === 'network-error'
-                  ? '无法连接到服务器，请检查网络连接。'
-                  : '正在连接服务器…'}
+                : '无法连接到服务器，请检查网络连接。'}
             </span>
           </div>
         )}

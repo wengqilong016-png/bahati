@@ -40,29 +40,30 @@ export function NavBar() {
       zIndex: 100,
       paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
-      {/* Connection status bar */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        padding: '3px 0',
-        background: connStatus === 'connected' ? 'transparent' : '#fff8f0',
-        borderBottom: connStatus === 'connected' ? 'none' : '1px solid #fde68a',
-      }}>
-        <span style={{
-          width: 7,
-          height: 7,
-          borderRadius: '50%',
-          background: dotColor,
-          display: 'inline-block',
-          flexShrink: 0,
-          boxShadow: connStatus === 'connected' ? `0 0 0 2px ${dotColor}33` : 'none',
-        }} />
-        <span style={{ fontSize: 10, color: connStatus === 'connected' ? '#666' : '#92400e' }}>
-          {label}
-        </span>
-      </div>
+      {/* Connection status bar – only shown when there is an actionable problem */}
+      {connStatus !== 'connected' && connStatus !== 'checking' && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          padding: '3px 0',
+          background: '#fff8f0',
+          borderBottom: '1px solid #fde68a',
+        }}>
+          <span style={{
+            width: 7,
+            height: 7,
+            borderRadius: '50%',
+            background: dotColor,
+            display: 'inline-block',
+            flexShrink: 0,
+          }} />
+          <span style={{ fontSize: 10, color: '#92400e' }}>
+            {label}
+          </span>
+        </div>
+      )}
 
       {/* Tab row */}
       <div style={{ display: 'flex' }}>
