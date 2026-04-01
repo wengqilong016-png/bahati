@@ -53,5 +53,5 @@
 **目标**：发布稳定，漏洞可控。  
 **任务**：
 - [ ] 统一 `@capacitor/*` 大版本（脚本与依赖一致）。
-- [ ] 处理 Dependabot `tar` 告警（升级、重锁、`npm audit` 验证）。
+- [ ] 处理 Dependabot tar 告警（升级 @capacitor/assets、重锁、npm audit 验证）。
 - [ ] 针对 Vercel（boss）补充 monorepo 构建配置与环境变量检查清单。
