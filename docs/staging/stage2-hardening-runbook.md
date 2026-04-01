@@ -14,19 +14,28 @@ supabase db push
 
 ## Run assertion script
 ```bash
-psql "$SUPABASE_DB_URL" -f supabase/tests/stage2_rls_assertions.sql
+psql "$SUPABASE_DB_URL" \
+  -v driver_id="<driver-auth-uuid>" \
+  -v boss_id="<boss-auth-uuid>" \
+  -v recon_date="2026-04-01" \
+  -f supabase/tests/stage2_rls_assertions.sql
 ```
 
+- `driver_id` and `boss_id` are required.
+- `recon_date` is optional; defaults to current date if omitted.
+
 ## Expected checks
-1. Direct `UPDATE drivers.coin_balance/cash_balance` as `authenticated` should fail.
-2. Direct `SELECT merchants.retained_balance/debt_balance` as `authenticated` should fail.
-3. `read_driver_balances()` should succeed for self-driver read.
-4. `read_merchant_balances()` should succeed only for boss users.
+1. SECURITY DEFINER target functions are pinned to `search_path=''`.
+2. Direct `UPDATE drivers.coin_balance/cash_balance` as `authenticated` is denied.
+3. Direct `SELECT merchants.retained_balance/debt_balance` as `authenticated` is denied.
+4. Driver can read self via `read_driver_balances` but cannot read other drivers.
+5. Boss can read merchant balances via `read_merchant_balances` and driver balances via `read_driver_balances`.
+6. Opening/theoretical reconciliation evidence query returns expected arithmetic columns.
 
 ## Rollback guidance
 - Preferred: restore from DB backup/snapshot taken before migration.
 - Emergency: create a follow-up migration that restores prior function definitions and revokes `read_driver_balances`.
 
 ## Notes
-- The assertion script includes placeholder UUIDs for driver/boss claims.
-- Replace placeholders with real auth user ids in staging.
+- Assertion script runs inside a transaction and finishes with `ROLLBACK` (non-destructive).
+- If there is only one driver row, the cross-driver denial check is reported as `SKIP`.
