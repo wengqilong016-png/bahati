@@ -6,9 +6,9 @@ import { pullReconciliations } from '../lib/sync';
 import { supabase } from '../lib/supabase';
 import type { LocalTask, LocalKiosk } from '../lib/types';
 
-function todayNairobi(): string {
+function todayDarEsSalaam(): string {
   return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Nairobi',
+    timeZone: 'Africa/Dar_es_Salaam',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -16,7 +16,7 @@ function todayNairobi(): string {
 }
 
 export function ReconciliationPage() {
-  const today = todayNairobi();
+  const today = todayDarEsSalaam();
   const [refreshKey, setRefreshKey] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [submitting, setSubmitting] = useState(false);

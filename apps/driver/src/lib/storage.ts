@@ -13,7 +13,7 @@
 // ============================================================
 
 import { supabase } from './supabase';
-import { getTodayNairobi } from './utils';
+import { getTodayDarEsSalaam } from './utils';
 
 const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 const MAX_WIDTH = 1920;
@@ -181,7 +181,7 @@ async function uploadFileToBucket(
  * Bucket:  task-photos
  * Path:    {driver_id}/{task_date}/{taskId}/{timestamp}.{ext}
  *
- * task_date uses Africa/Nairobi time (same as saveDailyTask) so the folder always matches the record.
+ * task_date uses Africa/Dar_es_Salaam time (same as saveDailyTask) so the folder always matches the record.
  * Returns the public URL of the uploaded image.
  */
 export async function uploadTaskPhoto(file: File, taskId: string): Promise<string> {
@@ -190,8 +190,8 @@ export async function uploadTaskPhoto(file: File, taskId: string): Promise<strin
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Not logged in. Cannot upload task photos.');
 
-  // Use Africa/Nairobi date to match task_date written by saveDailyTask()
-  const taskDate = getTodayNairobi();
+  // Use Africa/Dar_es_Salaam date to match task_date written by saveDailyTask()
+  const taskDate = getTodayDarEsSalaam();
 
   return uploadFileToBucket(file, STORAGE_BUCKETS.TASK_PHOTOS, compressed => {
     const ext = compressed.name.split('.').pop() ?? 'jpg';

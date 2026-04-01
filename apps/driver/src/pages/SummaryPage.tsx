@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import type { LocalTask, LocalScoreResetRequest, LocalKioskOnboarding, LocalKiosk } from '../lib/types';
-import { getTodayNairobi, getDateNairobi } from '../lib/utils';
+import { getTodayDarEsSalaam, getDateDarEsSalaam } from '../lib/utils';
 
 export function SummaryPage() {
-  const today = getTodayNairobi();
+  const today = getTodayDarEsSalaam();
 
   const [tasks, setTasks] = useState<(LocalTask & { kiosk?: LocalKiosk })[]>([]);
   const [resets, setResets] = useState<(LocalScoreResetRequest & { kiosk?: LocalKiosk })[]>([]);
@@ -27,7 +27,7 @@ export function SummaryPage() {
 
       // Today's resets
       const allResets = await db.score_reset_requests.toArray();
-      const todayResets = allResets.filter(r => getDateNairobi(r.created_at) === today);
+      const todayResets = allResets.filter(r => getDateDarEsSalaam(r.created_at) === today);
       const resetKioskIds = [...new Set(todayResets.map(r => r.kiosk_id))];
       const resetKiosks = resetKioskIds.length > 0
         ? await db.kiosks.where('id').anyOf(resetKioskIds).toArray()
@@ -37,7 +37,7 @@ export function SummaryPage() {
 
       // Today's onboardings
       const allOnboardings = await db.kiosk_onboarding_records.toArray();
-      const todayOnboardings = allOnboardings.filter(o => getDateNairobi(o.created_at) === today);
+      const todayOnboardings = allOnboardings.filter(o => getDateDarEsSalaam(o.created_at) === today);
 
       if (!cancelled) {
         setTasks(enrichedTasks);

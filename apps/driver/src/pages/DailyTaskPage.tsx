@@ -8,7 +8,7 @@ import { validateDailyTaskScore } from '../lib/validation';
 import { saveDailyTask } from '../lib/actions';
 import { uploadTaskPhoto } from '../lib/storage';
 import { processQueue, pullTasks } from '../lib/sync';
-import { getTodayNairobi } from '../lib/utils';
+import { getTodayDarEsSalaam } from '../lib/utils';
 
 export function DailyTaskPage() {
   const { kioskId } = useParams<{ kioskId: string }>();
@@ -21,7 +21,7 @@ export function DailyTaskPage() {
   const existingTask = useLiveQuery(
     () => {
       if (!kioskId) return undefined;
-      const today = getTodayNairobi();
+      const today = getTodayDarEsSalaam();
       return db.tasks.filter(t => t.kiosk_id === kioskId && t.task_date === today).first();
     },
     [kioskId],
