@@ -4,11 +4,12 @@
 
 自 **2024-01-04**（`supabase/migrations/20240104000000_phase1_complete_schema.sql`）起，业务应以以下表为 authoritative：
 
-- `drivers`
-- `merchants`
-- `kiosks`
-- `tasks`
-- `kiosk_onboarding_records`
+- `drivers` 
+- `merchants` 
+- `kiosks` 
+- `kiosk_assignment_history` 
+- `tasks` 
+- `kiosk_onboarding_records` 
 - `score_reset_requests`
 
 并在 Phase2（`2024-01-05`）补齐：
