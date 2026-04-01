@@ -82,7 +82,8 @@ BEGIN
 END;
 $$;
 
--- Optional trigger helper hardening included for completeness.
+-- Trigger function used by trg_score_reset_approval; hardened here to match the
+-- search_path policy applied to the RPC helpers above.
 CREATE OR REPLACE FUNCTION public.handle_score_reset_approval()
 RETURNS TRIGGER
 LANGUAGE plpgsql

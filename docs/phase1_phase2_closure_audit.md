@@ -7,7 +7,7 @@
 
 1. **本次安全硬化已补齐**：新增 migration `20260401000300_score_reset_search_path_hardening.sql`，对 `approve_score_reset`、`reject_score_reset`、`handle_score_reset_approval` 执行 `CREATE OR REPLACE` 且显式 `SET search_path = public`，并附 `pg_proc.proconfig` 校验 SQL。  
 2. **新旧表名并存于仓库**：业务主迁移已切换到 `kiosks/tasks/daily_driver_reconciliations/...`，但历史迁移与 Dexie 迁移注释仍保留 `machines/machine_onboardings/daily_settlements`。这是“历史兼容存在”，不是运行期主路径，但易造成理解偏差。  
-3. **核心 Phase2 RPC 大多已定义 + SECURITY DEFINER + search_path**；但额外 RPC `driver_create_onboarding_bundle` 当前 **未声明 SECURITY DEFINER / 未显式 SET search_path**，属于权限模型不一致风险。  
+3. **核心 Phase2 RPC（含 `driver_create_onboarding_bundle` 在内）均已定义 + SECURITY DEFINER 且显式 `SET search_path = public`；此前审计备注中关于该 RPC "缺失 SECURITY DEFINER / search_path" 的结论已由 `supabase/migrations/20260401000100_driver_onboarding_bundle.sql` 更正。  
 4. **RLS/列权限已加固关键列**：`drivers.coin_balance/cash_balance` 直接 UPDATE 已对 authenticated 撤销；`merchants.retained_balance/debt_balance` 对 authenticated 撤销 SELECT，boss 通过 `read_merchant_balances()` 读取。  
 5. **关键业务规则实现可定位**：首次日结 opening 公式、分红比例快照、任务结算状态流、余额负数保护均可在 migration 直接定位。  
 6. **工程层风险仍在**：
@@ -129,7 +129,7 @@
   - `REVOKE UPDATE (coin_balance, cash_balance) ON public.drivers FROM authenticated`。
   - `REVOKE SELECT (retained_balance, debt_balance) ON public.merchants FROM authenticated`。
 - 需 `SECURITY DEFINER` 的关键 RPC：结算、日结、债务、留存、手工调账、审批读取类函数（大部分已满足）。
-- 需 `SET search_path` 的函数：所有 `SECURITY DEFINER` 函数应显式设置；当前主链已满足，`driver_create_onboarding_bundle` 为缺口。
+- 需 `SET search_path` 的函数：所有 `SECURITY DEFINER` 函数应显式设置；当前主链（含 `driver_create_onboarding_bundle`）均已满足。
 - Boss 端读取 `retained_balance/debt_balance` 方案：现状采用 `read_merchant_balances()`（SECURITY DEFINER + boss 校验）；前端 `MerchantsPage/DashboardPage` 已按 RPC 读取，符合设计。
 
 ---
@@ -199,12 +199,11 @@
 
 ## E. 风险清单（按严重度）
 
-1. **高**：`driver_create_onboarding_bundle` 非 SECURITY DEFINER 且无 `SET search_path`，与其内部跨表写入职责不匹配，存在权限和 search_path 劫持面。  
-2. **高**：`supabase/migrations` 存在同时间戳双文件（`20260401000200_*`），在某些迁移编排工具下可能产生排序不确定性。  
-3. **高**：Capacitor 版本漂移（6.x 运行脚本 + 8.x devDependency）导致移动端构建不可重复。  
-4. **中**：Dexie 与远端账本表未镜像（task_settlements/merchant_ledger/driver_fund_ledger），离线审计能力不足。  
-5. **中**：照片保留天数策略未固化（未指定），可能引发成本与合规问题。  
-6. **中**：`read_driver_balances` 已有但前端尚未接入，余额展示口径易分裂。  
+1. **高**：`supabase/migrations` 存在同时间戳双文件（`20260401000200_*`），在某些迁移编排工具下可能产生排序不确定性。  
+2. **高**：Capacitor 版本漂移（6.x 运行脚本 + 8.x devDependency）导致移动端构建不可重复。  
+3. **中**：Dexie 与远端账本表未镜像（task_settlements/merchant_ledger/driver_fund_ledger），离线审计能力不足。  
+4. **中**：照片保留天数策略未固化（未指定），可能引发成本与合规问题。  
+5. **中**：`read_driver_balances` 已有但前端尚未接入，余额展示口径易分裂。  
 
 ---
 
@@ -212,7 +211,7 @@
 
 ### Stage 1 — DB Security Hardening 收口
 - 合并本次 score-reset search_path migration。
-- 为 `driver_create_onboarding_bundle` 增加 `SECURITY DEFINER + SET search_path=public`。
+- 确认 `driver_create_onboarding_bundle` 已按 `20260401000100_driver_onboarding_bundle.sql` 中的定义（`SECURITY DEFINER + SET search_path=public`）在各环境迁移到位，如发现偏差则补充修复 migration。
 - 增加 `pg_proc.proconfig` 自动化校验 SQL（CI 可跑）。
 
 ### Stage 2 — Migration 序列治理
