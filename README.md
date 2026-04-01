@@ -118,6 +118,20 @@ startSync()
    ```bash
    # Run supabase/seed.sql manually in the SQL editor
    ```
+4. Create required Storage buckets (or onboarding/task photo upload will fail with `Bucket not found`):
+   - `task-photos`
+   - `onboarding-photos`
+
+   You can create them in **Supabase Dashboard → Storage**, or run SQL:
+   ```sql
+   insert into storage.buckets (id, name, public)
+   values
+     ('task-photos', 'task-photos', true),
+     ('onboarding-photos', 'onboarding-photos', true)
+   on conflict (id) do nothing;
+   ```
+
+   Then add Storage policies for `storage.objects` so authenticated users can upload to paths under their own user id folder, and allow public read if boss-side pages need direct image URLs.
 
 ### 2. Environment Variables
 

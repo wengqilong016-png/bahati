@@ -17,13 +17,18 @@ import { getTodayNairobi } from './utils';
 
 const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 const MAX_WIDTH = 1920;
+export const STORAGE_BUCKETS = {
+  TASK_PHOTOS: 'task-photos',
+  ONBOARDING_PHOTOS: 'onboarding-photos',
+} as const;
+type StorageBucket = (typeof STORAGE_BUCKETS)[keyof typeof STORAGE_BUCKETS];
 
 // ---- Offline pending-upload queue (localStorage) --------------------------------
 
 interface PendingPhotoUpload {
   id: string;
   dataUrl: string;
-  bucket: 'task-photos' | 'onboarding-photos';
+  bucket: StorageBucket;
   path: string;
   addedAt: string;
 }
@@ -137,7 +142,7 @@ async function compressIfNeeded(file: File): Promise<File> {
  */
 async function uploadFileToBucket(
   file: File,
-  bucket: 'task-photos' | 'onboarding-photos',
+  bucket: StorageBucket,
   buildPath: (compressed: File) => string,
 ): Promise<string> {
   const compressed = await compressIfNeeded(file);
@@ -188,7 +193,7 @@ export async function uploadTaskPhoto(file: File, taskId: string): Promise<strin
   // Use Africa/Nairobi date to match task_date written by saveDailyTask()
   const taskDate = getTodayNairobi();
 
-  return uploadFileToBucket(file, 'task-photos', compressed => {
+  return uploadFileToBucket(file, STORAGE_BUCKETS.TASK_PHOTOS, compressed => {
     const ext = compressed.name.split('.').pop() ?? 'jpg';
     return `${user.id}/${taskDate}/${taskId}/${Date.now()}.${ext}`;
   });
@@ -207,7 +212,7 @@ export async function uploadOnboardingPhoto(file: File, onboardingId: string): P
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Not logged in. Cannot upload onboarding photos.');
 
-  return uploadFileToBucket(file, 'onboarding-photos', compressed => {
+  return uploadFileToBucket(file, STORAGE_BUCKETS.ONBOARDING_PHOTOS, compressed => {
     const ext = compressed.name.split('.').pop() ?? 'jpg';
     return `${user.id}/${onboardingId}/${Date.now()}.${ext}`;
   });
