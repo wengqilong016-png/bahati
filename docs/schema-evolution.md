@@ -18,7 +18,7 @@
 - `driver_fund_ledger`
 - `daily_driver_reconciliations`
 
-> 结论：从代码与迁移执行语义看，运行期 authoritative 集合为 `drivers/merchants/kiosks/tasks`（Phase1）+ Phase2 账本/日结扩展表。
+> 结论：从代码与迁移执行语义看，运行期 authoritative 集合为 `drivers/merchants/kiosks/tasks/kiosk_onboarding_records/score_reset_requests`（Phase1）+ Phase2 账本/日结扩展表。
 
 ---
 
