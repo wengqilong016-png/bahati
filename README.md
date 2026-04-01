@@ -131,7 +131,7 @@ startSync()
    on conflict (id) do nothing;
    ```
 
-   Then add Storage policies for `storage.objects` so authenticated users can upload to paths under their own user id folder, and allow public read if boss-side pages need direct image URLs.
+   Then add Storage policies for storage.objects so authenticated users can manage their own folders (allowing both upload and update), and allow public read access for the boss-side dashboard.
 
 ### 2. Environment Variables
 
