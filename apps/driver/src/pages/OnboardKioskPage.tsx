@@ -38,6 +38,7 @@ export function OnboardKioskPage() {
   const [initialScore, setInitialScore] = useState('0');
   const [initialCoinLoan, setInitialCoinLoan] = useState('0');
   const [notes, setNotes] = useState('');
+  const [dividendRate, setDividendRate] = useState('30');
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -58,6 +59,7 @@ export function OnboardKioskPage() {
       setLocationName('');
       setInitialScore('0');
       setInitialCoinLoan('0');
+      setDividendRate('30');
     } else {
       setKioskId('');
       setSerialNumber('');
@@ -96,6 +98,7 @@ export function OnboardKioskPage() {
       } else {
         const parsedInitialScore = parseInt(initialScore, 10);
         const parsedInitialCoinLoan = Number(initialCoinLoan);
+        const parsedDividendRate = parseFloat(dividendRate) / 100;
 
         await createKioskOnboarding({
           onboardingId: onboardingIdRef.current,
@@ -107,6 +110,7 @@ export function OnboardKioskPage() {
           kioskLocationName: locationName,
           initialScore: Number.isNaN(parsedInitialScore) ? 0 : parsedInitialScore,
           initialCoinLoan: Number.isNaN(parsedInitialCoinLoan) ? 0 : parsedInitialCoinLoan,
+          dividendRate: Number.isNaN(parsedDividendRate) ? 0.30 : parsedDividendRate,
           photoUrls: photos,
           notes: notes.trim(),
         });
@@ -311,6 +315,29 @@ export function OnboardKioskPage() {
                 Enter the serial number printed on the new machine.
               </p>
             )}
+          </div>
+        )}
+
+        {/* Dividend rate — for new onboarding only */}
+        {!isRecert && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
+              Dividend Rate (%) *
+            </label>
+            <input
+              type="number"
+              value={dividendRate}
+              onChange={e => setDividendRate(e.target.value)}
+              required
+              min={0}
+              max={100}
+              step="0.1"
+              placeholder="30"
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
+            />
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888' }}>
+              Merchant's share of revenue, e.g. 30 means 30%.
+            </p>
           </div>
         )}
 

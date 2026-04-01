@@ -191,6 +191,7 @@ export interface CreateKioskOnboardingInput {
   kioskLocationName: string;
   initialScore: number;
   initialCoinLoan: number;
+  dividendRate?: number;
   photoUrls: string[];
   notes: string;
 }
@@ -221,6 +222,9 @@ export async function createKioskOnboarding(input: CreateKioskOnboardingInput): 
   if (!Number.isFinite(input.initialCoinLoan) || input.initialCoinLoan < 0) {
     throw new Error('Initial coin loan must be a non-negative number.');
   }
+  if (input.dividendRate !== undefined && (!Number.isFinite(input.dividendRate) || input.dividendRate < 0 || input.dividendRate > 1)) {
+    throw new Error('Dividend rate must be between 0 and 1 (representing 0% to 100%).');
+  }
   if (input.photoUrls.length === 0) {
     throw new Error('At least one photo is required for onboarding.');
   }
@@ -238,6 +242,7 @@ export async function createKioskOnboarding(input: CreateKioskOnboardingInput): 
     p_initial_coin_loan: input.initialCoinLoan,
     p_photo_urls: input.photoUrls,
     p_notes: input.notes.trim() || null,
+    p_dividend_rate: input.dividendRate ?? null,
   });
 
   if (error) {
