@@ -1,15 +1,14 @@
 // ============================================================
 // Storage module — uploads photos to Supabase Storage
 //
-// Buckets needed (create via Supabase dashboard):
+// Buckets (managed by Supabase migrations):
 // 1. task-photos        (public read, authenticated write)
 // 2. onboarding-photos  (public read, authenticated write)
+// 3. reset-request-photos (reserved for score reset evidence uploads)
 //
-// RLS policies (apply to both buckets):
-// INSERT: auth.uid() = (path_tokens[1])::uuid
-//   -- driver can only upload to their own folder
-// SELECT: true
-//   -- public read so boss app can view photos without auth
+// RLS policies (applied by migration on all photo buckets):
+// INSERT/UPDATE/SELECT: split_part(name, '/', 1) = auth.uid()::text
+//   -- driver can only access objects under their own folder
 // ============================================================
 
 import { supabase } from './supabase';

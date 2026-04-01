@@ -1,0 +1,31 @@
+# Driver app deployment notes
+
+## Supabase Storage buckets are now migration-managed
+
+After applying migrations, you **do not need to create storage buckets manually**.
+The migration `supabase/migrations/20260401000200_phase2_storage_policies.sql` now idempotently ensures:
+
+- `onboarding-photos`
+- `task-photos`
+- `reset-request-photos`
+
+It also creates RLS policies on `storage.objects` for `INSERT`/`SELECT`/`UPDATE`, restricted to authenticated users writing under their own prefix path:
+
+- `auth.uid()/...`
+
+This path rule matches the upload path generation in `src/lib/storage.ts`.
+
+## Troubleshooting: "Bucket not found"
+
+If photo uploads fail with "Bucket not found":
+
+1. Ensure latest migrations have been applied to the target environment.
+2. Run SQL verification script:
+   - `psql "$SUPABASE_DB_URL" -f supabase/sql/verify_phase2_storage_policies.sql`
+3. Check bucket names are exact (case-sensitive):
+   - `onboarding-photos`
+   - `task-photos`
+   - `reset-request-photos`
+4. Confirm RLS path prefix matches authenticated user id:
+   - path must start with `<auth.uid()>/...`
+5. For upsert uploads, ensure `UPDATE` policy exists on `storage.objects` (included in phase2 migration).
