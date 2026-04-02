@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { getTodayDarEsSalaam } from '../lib/utils';
@@ -7,36 +7,13 @@ import { getTodayDarEsSalaam } from '../lib/utils';
 export function HomePage() {
   const navigate = useNavigate();
   const isOnline = useOnlineStatus();
+  const today = getTodayDarEsSalaam();
 
-  const [kioskCount, setKioskCount] = useState(0);
-  const [todayTaskCount, setTodayTaskCount] = useState(0);
-  const [pendingSyncCount, setPendingSyncCount] = useState(0);
-  const [pendingResetCount, setPendingResetCount] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    const today = getTodayDarEsSalaam();
-
-    async function load() {
-      const kiosks = await db.kiosks.count();
-      const tasks = await db.tasks.where('task_date').equals(today).count();
-      const syncs = await db.sync_queue.where('retry_count').below(3).count();
-      const resets = await db.score_reset_requests
-        .where('sync_status')
-        .anyOf(['pending', 'syncing'])
-        .count();
-
-      if (!cancelled) {
-        setKioskCount(kiosks);
-        setTodayTaskCount(tasks);
-        setPendingSyncCount(syncs);
-        setPendingResetCount(resets);
-      }
-    }
-
-    void load();
-    return () => { cancelled = true; };
-  }, []);
+  const kioskCount = useLiveQuery(() => db.kiosks.count(), []) ?? 0;
+  const todayTaskCount = useLiveQuery(() => db.tasks.where('task_date').equals(today).count(), [today]) ?? 0;
+  const pendingSyncCount = useLiveQuery(() => db.sync_queue.where('retry_count').below(3).count(), []) ?? 0;
+  const pendingResetCount = useLiveQuery(() =>
+    db.score_reset_requests.where('sync_status').anyOf(['pending', 'syncing']).count(), []) ?? 0;
 
   return (
     <div style={{ padding: '16px 16px 80px' }}>

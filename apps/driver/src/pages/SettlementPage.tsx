@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useMemo, FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db';
@@ -44,17 +44,17 @@ function SettledCard({ task, kiosk }: SettledCardProps) {
       </div>
       <div style={{ fontSize: 13, color: '#444', lineHeight: 1.8 }}>
         <div>Score: {task.score_before ?? '—'} → {task.current_score}</div>
-        {grossRevenue !== undefined && <div>Revenue: KES {grossRevenue.toLocaleString()}</div>}
+        {grossRevenue !== undefined && <div>Revenue: TZS {grossRevenue.toLocaleString()}</div>}
         {dividendAmount !== undefined && (
           <div>
             Dividend ({task.dividend_rate_snapshot !== undefined ? `${(task.dividend_rate_snapshot * 100).toFixed(0)}%` : '—'}):
-            KES {dividendAmount.toLocaleString()}
+            TZS {dividendAmount.toLocaleString()}
           </div>
         )}
         <div>Dividend method: {task.dividend_method === 'cash' ? 'Cash withdrawal' : task.dividend_method === 'retained' ? 'Retained' : '—'}</div>
-        {task.exchange_amount !== undefined && <div>Exchange amount: KES {task.exchange_amount.toLocaleString()}</div>}
+        {task.exchange_amount !== undefined && <div>Exchange amount: TZS {task.exchange_amount.toLocaleString()}</div>}
         {task.expense_amount !== undefined && task.expense_amount > 0 && (
-          <div>Expense: KES {task.expense_amount.toLocaleString()}{task.expense_note ? ` (${task.expense_note})` : ''}</div>
+          <div>Expense: TZS {task.expense_amount.toLocaleString()}{task.expense_note ? ` (${task.expense_note})` : ''}</div>
         )}
       </div>
     </div>
@@ -145,8 +145,8 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
         </div>
         {grossRevenue !== undefined && (
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>Gross Revenue (KES)</label>
-            <input readOnly value={`KES ${grossRevenue.toLocaleString()}`} style={readonlyStyle} />
+            <label style={labelStyle}>Gross Revenue (TZS)</label>
+            <input readOnly value={`TZS ${grossRevenue.toLocaleString()}`} style={readonlyStyle} />
           </div>
         )}
         {task.dividend_rate_snapshot !== undefined && (
@@ -157,8 +157,8 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
         )}
         {dividendAmount !== undefined && (
           <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>Dividend Amount (KES)</label>
-            <input readOnly value={`KES ${dividendAmount.toLocaleString()}`} style={readonlyStyle} />
+            <label style={labelStyle}>Dividend Amount (TZS)</label>
+            <input readOnly value={`TZS ${dividendAmount.toLocaleString()}`} style={readonlyStyle} />
           </div>
         )}
 
@@ -183,7 +183,7 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
 
         {/* Exchange amount */}
         <div style={{ marginBottom: 10 }}>
-          <label style={labelStyle}>Token Exchange Amount (KES)</label>
+          <label style={labelStyle}>Token Exchange Amount (TZS)</label>
           <input
             type="number"
             min={0}
@@ -196,7 +196,7 @@ function SettlementForm({ task, kiosk, onSettled }: SettlementFormProps) {
 
         {/* Expense amount */}
         <div style={{ marginBottom: 10 }}>
-          <label style={labelStyle}>Expense Amount (KES)</label>
+          <label style={labelStyle}>Expense Amount (TZS)</label>
           <input
             type="number"
             min={0}
@@ -246,8 +246,9 @@ export function SettlementPage() {
 
   const kiosks = useLiveQuery(() => db.kiosks.toArray(), []);
 
-  const kioskMap = new Map<string, LocalKiosk>(
-    (kiosks ?? []).map(k => [k.id, k]),
+  const kioskMap = useMemo(
+    () => new Map<string, LocalKiosk>((kiosks ?? []).map(k => [k.id, k])),
+    [kiosks],
   );
 
   const pendingTasks = (tasks ?? []).filter(t => t.settlement_status !== 'settled');

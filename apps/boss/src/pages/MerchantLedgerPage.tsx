@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { DataTable, type Column } from '../components/DataTable';
+import { fmtCurrency } from '../lib/format';
 
 interface MerchantLedgerEntry {
   id: string;
@@ -65,7 +66,7 @@ export function MerchantLedgerPage() {
         const amount = Number(row.amount);
         return (
           <span style={{ color: amount < 0 ? '#c62828' : '#1e7e34', fontWeight: 600 }}>
-            {amount < 0 ? '' : '+'}IDR {amount.toLocaleString()}
+            {amount < 0 ? '' : '+'}{fmtCurrency(amount)}
           </span>
         );
       },
@@ -73,12 +74,12 @@ export function MerchantLedgerPage() {
     {
       key: 'retained_balance_after',
       header: 'Retained After',
-      render: row => `IDR ${Number(row.retained_balance_after).toLocaleString()}`,
+      render: row => fmtCurrency(Number(row.retained_balance_after)),
     },
     {
       key: 'debt_balance_after',
       header: 'Debt After',
-      render: row => `IDR ${Number(row.debt_balance_after).toLocaleString()}`,
+      render: row => fmtCurrency(Number(row.debt_balance_after)),
     },
     { key: 'description', header: 'Description' },
   ];

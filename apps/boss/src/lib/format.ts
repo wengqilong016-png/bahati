@@ -1,5 +1,5 @@
 export function fmtCurrency(n: number): string {
-  return `IDR ${n.toLocaleString('id-ID')}`;
+  return `TZS ${n.toLocaleString('en-TZ')}`;
 }
 
 export function fmtPercent(n: number): string {
