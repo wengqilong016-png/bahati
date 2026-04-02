@@ -10,11 +10,10 @@ ALTER TABLE public.kiosks
 COMMENT ON COLUMN public.kiosks.latitude  IS 'GPS latitude for map display';
 COMMENT ON COLUMN public.kiosks.longitude IS 'GPS longitude for map display';
 
--- 2) RLS: allow boss to UPDATE drivers (currently only self-update exists)
-CREATE POLICY "drivers_update_boss"
-  ON public.drivers FOR UPDATE
-  USING (public.is_boss())
-  WITH CHECK (public.is_boss());
+-- 2) RLS: do not allow boss clients to UPDATE drivers directly
+--    Boss driver mutations must go through SECURITY DEFINER RPCs so
+--    business rules remain centralized and cannot be bypassed.
+DROP POLICY IF EXISTS "drivers_update_boss" ON public.drivers;
 
 -- 3) Boss-only RPC: update_driver_info
 --    Allows boss to edit driver profile fields
