@@ -27,6 +27,7 @@ export function DriversPage() {
   const [reconcMap, setReconcMap] = useState<Record<string, ReconciliationStatus>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
 
   // Edit modal state
@@ -38,6 +39,19 @@ export function DriversPage() {
 
   // Toggle-active loading state
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  // Add driver modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addEmail, setAddEmail] = useState('');
+  const [addPassword, setAddPassword] = useState('');
+  const [addName, setAddName] = useState('');
+  const [addPhone, setAddPhone] = useState('');
+  const [addPlate, setAddPlate] = useState('');
+  const [adding, setAdding] = useState(false);
+
+  // Delete confirmation state
+  const [deletingDriver, setDeletingDriver] = useState<Driver | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -127,6 +141,65 @@ export function DriversPage() {
     }
   };
 
+  // --- Add driver ---
+  const closeAddModal = () => {
+    setShowAddModal(false);
+    setAddEmail('');
+    setAddPassword('');
+    setAddName('');
+    setAddPhone('');
+    setAddPlate('');
+  };
+
+  const handleAddDriver = async (e: FormEvent) => {
+    e.preventDefault();
+    setAdding(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    const { data, error: err } = await supabase.functions.invoke('invite-driver', {
+      body: {
+        email: addEmail,
+        password: addPassword,
+        full_name: addName,
+        phone: addPhone || undefined,
+        license_plate: addPlate || undefined,
+      },
+    });
+
+    setAdding(false);
+    if (err) {
+      setError(err.message);
+    } else if (data?.error) {
+      setError(data.error);
+    } else {
+      setSuccessMsg(`司机 "${addName}" 创建成功`);
+      closeAddModal();
+      void fetchData();
+    }
+  };
+
+  // --- Delete driver ---
+  const handleDeleteDriver = async () => {
+    if (!deletingDriver) return;
+    setDeleting(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    const { error: err } = await supabase.rpc('soft_delete_driver', {
+      p_driver_id: deletingDriver.id,
+    });
+
+    setDeleting(false);
+    if (err) {
+      setError(err.message);
+    } else {
+      setSuccessMsg(`司机 "${deletingDriver.full_name}" 已停用`);
+      setDeletingDriver(null);
+      void fetchData();
+    }
+  };
+
   const counts = {
     all: drivers?.length ?? 0,
     active: drivers?.filter(d => d.is_active).length ?? 0,
@@ -135,7 +208,22 @@ export function DriversPage() {
 
   return (
     <div style={{ padding: '20px 16px', maxWidth: 800 }}>
-      <h2 style={{ margin: '0 0 16px', color: '#0066CC', fontSize: 20 }}>司机管理</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h2 style={{ margin: 0, color: '#0066CC', fontSize: 20 }}>司机管理</h2>
+        <button
+          onClick={() => setShowAddModal(true)}
+          style={{ padding: '8px 18px', background: '#0066CC', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+        >
+          + 添加司机
+        </button>
+      </div>
+
+      {successMsg && (
+        <div style={{ background: '#e6f4ea', color: '#1e7e34', padding: 12, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
+          {successMsg}
+          <button onClick={() => setSuccessMsg(null)} style={{ float: 'right', background: 'none', border: 'none', color: '#1e7e34', cursor: 'pointer', fontWeight: 700 }}>✕</button>
+        </div>
+      )}
 
       {error && (
         <div style={{ background: '#fce8e6', color: '#c62828', padding: 12, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
@@ -289,6 +377,23 @@ export function DriversPage() {
                 >
                   {togglingId === d.id ? '...' : d.is_active ? '🚫 停用' : '✅ 启用'}
                 </button>
+                {d.is_active && (
+                  <button
+                    onClick={() => setDeletingDriver(d)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: 6,
+                      border: '1px solid #c62828',
+                      background: '#fff',
+                      color: '#c62828',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    🗑 删除
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -366,6 +471,153 @@ export function DriversPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+      {/* Add Driver Modal */}
+      {showAddModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: 16,
+        }}>
+          <form
+            onSubmit={handleAddDriver}
+            style={{
+              background: '#fff',
+              borderRadius: 16,
+              padding: 24,
+              width: '100%',
+              maxWidth: 420,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            }}
+          >
+            <h3 style={{ margin: '0 0 20px', color: '#0066CC', fontSize: 18 }}>添加新司机</h3>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 13, fontWeight: 600, color: '#333' }}>姓名 *</label>
+              <input
+                value={addName}
+                onChange={e => setAddName(e.target.value)}
+                required
+                placeholder="例: John Doe"
+                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 13, fontWeight: 600, color: '#333' }}>邮箱 *</label>
+              <input
+                type="email"
+                value={addEmail}
+                onChange={e => setAddEmail(e.target.value)}
+                required
+                placeholder="driver@example.com"
+                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 13, fontWeight: 600, color: '#333' }}>初始密码 *</label>
+              <input
+                type="password"
+                value={addPassword}
+                onChange={e => setAddPassword(e.target.value)}
+                required
+                minLength={6}
+                placeholder="至少6位"
+                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 13, fontWeight: 600, color: '#333' }}>电话</label>
+              <input
+                value={addPhone}
+                onChange={e => setAddPhone(e.target.value)}
+                placeholder="+255..."
+                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: 13, fontWeight: 600, color: '#333' }}>车牌号</label>
+              <input
+                value={addPlate}
+                onChange={e => setAddPlate(e.target.value)}
+                placeholder="T 123 ABC"
+                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={closeAddModal}
+                style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#666', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                disabled={adding}
+                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#0066CC', color: '#fff', cursor: adding ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: 13, opacity: adding ? 0.6 : 1 }}
+              >
+                {adding ? '创建中...' : '创建'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingDriver && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: 16,
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            padding: 24,
+            width: '100%',
+            maxWidth: 400,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+          }}>
+            <h3 style={{ margin: '0 0 12px', color: '#c62828', fontSize: 18 }}>确认删除</h3>
+            <p style={{ margin: '0 0 8px', fontSize: 14, color: '#333' }}>
+              确定要停用司机 <strong>{deletingDriver.full_name}</strong> 吗？
+            </p>
+            <p style={{ margin: '0 0 20px', fontSize: 12, color: '#888' }}>
+              系统将检查该司机是否有未结算的任务、未完成的对账或待审批的分数重置申请。
+              如果有，将无法停用。停用后，该司机将无法登录或执行任何操作。
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDeletingDriver(null)}
+                style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#666', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+              >
+                取消
+              </button>
+              <button
+                onClick={() => void handleDeleteDriver()}
+                disabled={deleting}
+                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#c62828', color: '#fff', cursor: deleting ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: 13, opacity: deleting ? 0.6 : 1 }}
+              >
+                {deleting ? '处理中...' : '确认停用'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
