@@ -56,6 +56,14 @@ jobs:
         working-directory: apps/driver
         run: npm ci
 
+      - name: Validate Supabase secrets
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          if [ -z "${{ secrets.VITE_SUPABASE_URL }}" ] || [ -z "${{ secrets.VITE_SUPABASE_ANON_KEY }}" ]; then
+            echo "::error::VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY secrets must be configured"
+            exit 1
+          fi
+
       - name: Create .env file
         if: steps.version.outputs.changed == 'true'
         working-directory: apps/driver

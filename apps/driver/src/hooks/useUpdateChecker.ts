@@ -31,6 +31,9 @@ function isNewer(local: string, remote: string): boolean {
   return false;
 }
 
+/** Storage key prefix for persisting dismissal across sessions. */
+const DISMISS_KEY = 'update_dismissed_version';
+
 /**
  * Periodically checks the latest GitHub Release for the bahati repository
  * and exposes whether an app update is available.
@@ -41,9 +44,23 @@ export function useUpdateChecker(): UpdateInfo & { dismiss: () => void; dismisse
     latestVersion: null,
     downloadUrl: null,
   });
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      const stored = localStorage.getItem(DISMISS_KEY);
+      return stored === __APP_VERSION__;
+    } catch {
+      return false;
+    }
+  });
 
-  const dismiss = useCallback(() => setDismissed(true), []);
+  const dismiss = useCallback(() => {
+    setDismissed(true);
+    try {
+      localStorage.setItem(DISMISS_KEY, __APP_VERSION__);
+    } catch {
+      // localStorage unavailable — dismiss for this session only
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,11 +85,25 @@ export function useUpdateChecker(): UpdateInfo & { dismiss: () => void; dismisse
         const apkAsset = data.assets.find((a) => a.name.endsWith('.apk'));
 
         if (!cancelled) {
+          const newer = isNewer(currentVersion, remoteVersion);
           setInfo({
-            hasUpdate: isNewer(currentVersion, remoteVersion),
+            hasUpdate: newer,
             latestVersion: remoteVersion,
             downloadUrl: apkAsset?.browser_download_url ?? null,
           });
+          // Reset dismissal when a brand-new version appears
+          if (newer) {
+            try {
+              const prev = localStorage.getItem(DISMISS_KEY);
+              if (prev && prev !== currentVersion) {
+                // User dismissed an older version — show banner for the new one
+                localStorage.removeItem(DISMISS_KEY);
+                setDismissed(false);
+              }
+            } catch {
+              // ignore
+            }
+          }
         }
       } catch {
         // Network errors are expected when offline — silently ignore.
