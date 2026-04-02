@@ -73,6 +73,17 @@ export class SmartKioskDB extends Dexie {
       sync_queue: '++id, table_name, record_id, operation',
       reconciliations: 'id, driver_id, reconciliation_date, status',
     });
+
+    // Version 7 — adds retry_count index on sync_queue so processQueue()
+    // can efficiently filter items below MAX_RETRIES.
+    this.version(7).stores({
+      kiosks: 'id, serial_number, status',
+      tasks: 'id, kiosk_id, task_date, sync_status, settlement_status, [kiosk_id+task_date]',
+      score_reset_requests: 'id, kiosk_id, sync_status',
+      kiosk_onboarding_records: 'id, kiosk_id, onboarding_type, sync_status',
+      sync_queue: '++id, table_name, record_id, operation, retry_count',
+      reconciliations: 'id, driver_id, reconciliation_date, status',
+    });
   }
 }
 
