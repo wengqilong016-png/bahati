@@ -13,6 +13,8 @@ interface Kiosk {
   status: string;
   last_recorded_score: number;
   assigned_driver_id: string | null;
+  latitude: number | null;
+  longitude: number | null;
   merchants: { name: string; phone: string | null } | null;
 }
 
@@ -63,6 +65,12 @@ export function KiosksPage() {
   const [onboardingRecords, setOnboardingRecords] = useState<OnboardingRecord[] | null>(null);
   const [photosLoading, setPhotosLoading] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  // Coordinate editing modal state
+  const [coordKiosk, setCoordKiosk] = useState<Kiosk | null>(null);
+  const [coordLat, setCoordLat] = useState('');
+  const [coordLng, setCoordLng] = useState('');
+  const [savingCoords, setSavingCoords] = useState(false);
 
   const fetchKiosks = async () => {
     setLoading(true);
@@ -150,6 +158,46 @@ export function KiosksPage() {
 
   const closePhotos = () => { setPhotoKiosk(null); setOnboardingRecords(null); setLightboxUrl(null); };
 
+  // GPS coordinate editing
+  const openCoordEditor = (k: Kiosk) => {
+    setCoordKiosk(k);
+    setCoordLat(k.latitude != null ? String(k.latitude) : '');
+    setCoordLng(k.longitude != null ? String(k.longitude) : '');
+  };
+
+  const handleSaveCoords = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!coordKiosk) return;
+    const lat = parseFloat(coordLat);
+    const lng = parseFloat(coordLng);
+    if (isNaN(lat) || isNaN(lng)) {
+      showToast('请输入有效的经纬度数值', 'error');
+      return;
+    }
+    if (lat < -90 || lat > 90) {
+      showToast('纬度必须在 -90 到 90 之间', 'error');
+      return;
+    }
+    if (lng < -180 || lng > 180) {
+      showToast('经度必须在 -180 到 180 之间', 'error');
+      return;
+    }
+    setSavingCoords(true);
+    const { error: err } = await supabase.rpc('update_kiosk_coordinates', {
+      p_kiosk_id: coordKiosk.id,
+      p_latitude: lat,
+      p_longitude: lng,
+    });
+    setSavingCoords(false);
+    if (err) {
+      showToast(`保存失败: ${err.message}`, 'error');
+    } else {
+      showToast('GPS 坐标已更新', 'success');
+      setCoordKiosk(null);
+      void fetchKiosks();
+    }
+  };
+
   const columns: Column<Record<string, unknown>>[] = [
     { key: 'serial_number', header: '序列号', width: '110px' },
     { key: 'merchant_name', header: '商家' },
@@ -173,6 +221,7 @@ export function KiosksPage() {
         </div>
       ),
     },
+    { key: 'gps', header: 'GPS', width: '80px' },
     { key: 'merchant_contact', header: '联系方式' },
     {
       key: 'actions',
@@ -201,6 +250,26 @@ export function KiosksPage() {
     ...k,
     merchant_name: k.merchants?.name ?? '—',
     merchant_contact: k.merchants?.phone ?? '—',
+    gps: k.latitude != null && k.longitude != null
+      ? (
+        <button
+          type="button"
+          onClick={() => openCoordEditor(k)}
+          style={{ background: 'none', border: 'none', padding: 0, color: colors.success, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
+          title={`${k.latitude}, ${k.longitude}`}
+        >
+          📍 已定位
+        </button>
+      )
+      : (
+        <button
+          type="button"
+          onClick={() => openCoordEditor(k)}
+          style={{ background: 'none', border: 'none', padding: 0, color: colors.warning, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
+        >
+          ⚠ 设置
+        </button>
+      ),
   })) as unknown as Record<string, unknown>[] | null;
 
   const typeLabel: Record<string, string> = { initial: '首次进场', recertification: '复检' };
@@ -296,6 +365,68 @@ export function KiosksPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* GPS Coordinate Editing Modal */}
+      {coordKiosk && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="设置 GPS 坐标"
+          onClick={e => { if (e.target === e.currentTarget) setCoordKiosk(null); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 16 }}
+        >
+          <form
+            onSubmit={handleSaveCoords}
+            style={{ background: colors.surface, borderRadius: radius.xl, padding: 28, maxWidth: 400, width: '92%', boxShadow: shadow.modal }}
+          >
+            <h3 style={{ margin: '0 0 6px', color: colors.primary, fontSize: font.sizes.xl }}>设置 GPS 坐标</h3>
+            <p style={{ margin: '0 0 16px', fontSize: font.sizes.sm, color: colors.textMuted }}>
+              {coordKiosk.serial_number} · {coordKiosk.location_name}
+            </p>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>纬度 (Latitude) *</label>
+              <input
+                type="number"
+                step="any"
+                value={coordLat}
+                onChange={e => setCoordLat(e.target.value)}
+                required
+                placeholder="-6.7924"
+                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${colors.divider}`, borderRadius: radius.sm, fontSize: font.sizes.md, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>经度 (Longitude) *</label>
+              <input
+                type="number"
+                step="any"
+                value={coordLng}
+                onChange={e => setCoordLng(e.target.value)}
+                required
+                placeholder="39.2083"
+                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${colors.divider}`, borderRadius: radius.sm, fontSize: font.sizes.md, boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <p style={{ margin: '0 0 16px', fontSize: font.sizes.xs, color: colors.textDisabled }}>
+              提示: 达累斯萨拉姆坐标范围大约为 纬度 -6.6 ~ -7.0, 经度 39.1 ~ 39.4
+            </p>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setCoordKiosk(null)}
+                style={{ padding: '8px 18px', borderRadius: radius.md, border: `1px solid ${colors.divider}`, background: colors.surface, color: colors.textSecondary, cursor: 'pointer', fontWeight: font.weights.semibold, fontSize: font.sizes.sm }}>
+                取消
+              </button>
+              <button type="submit" disabled={savingCoords}
+                style={{ padding: '8px 18px', borderRadius: radius.md, border: 'none', background: colors.primary, color: '#fff', cursor: savingCoords ? 'not-allowed' : 'pointer', fontWeight: font.weights.semibold, fontSize: font.sizes.sm, opacity: savingCoords ? 0.6 : 1 }}>
+                {savingCoords ? '保存中…' : '保存'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

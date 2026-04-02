@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, FormEvent } from 'react';
 import { supabase } from '../supabase';
 import { fmtCurrency } from '../lib/format';
 import { getTodayDarEsSalaam } from '../lib/utils';
@@ -44,6 +44,19 @@ export function DriversPage() {
   const [editDriver, setEditDriver] = useState<Driver | null>(null);
   const [editForm, setEditForm] = useState<EditDriverForm>({ full_name: '', phone: '', license_plate: '', is_active: true });
   const [saving, setSaving] = useState(false);
+
+  // Add driver modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addEmail, setAddEmail] = useState('');
+  const [addPassword, setAddPassword] = useState('');
+  const [addName, setAddName] = useState('');
+  const [addPhone, setAddPhone] = useState('');
+  const [addPlate, setAddPlate] = useState('');
+  const [adding, setAdding] = useState(false);
+
+  // Delete confirmation state
+  const [deletingDriver, setDeletingDriver] = useState<Driver | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
@@ -108,6 +121,63 @@ export function DriversPage() {
     }
   };
 
+  // --- Add driver ---
+  const closeAddModal = () => {
+    setShowAddModal(false);
+    setAddEmail('');
+    setAddPassword('');
+    setAddName('');
+    setAddPhone('');
+    setAddPlate('');
+  };
+
+  const handleAddDriver = async (e: FormEvent) => {
+    e.preventDefault();
+    setAdding(true);
+    setError(null);
+
+    const { data, error: err } = await supabase.functions.invoke('invite-driver', {
+      body: {
+        email: addEmail,
+        password: addPassword,
+        full_name: addName,
+        phone: addPhone || undefined,
+        license_plate: addPlate || undefined,
+      },
+    });
+
+    setAdding(false);
+    if (err) {
+      showToast(err.message, 'error');
+    } else if (data?.error) {
+      showToast(data.error, 'error');
+    } else {
+      showToast(`司机 "${addName}" 创建成功`, 'success');
+      closeAddModal();
+      void fetchData();
+    }
+  };
+
+  // --- Delete driver ---
+  const handleDeleteDriver = async () => {
+    if (!deletingDriver) return;
+    setDeleting(true);
+    setError(null);
+
+    const { error: err } = await supabase.rpc('soft_delete_driver', {
+      p_driver_id: deletingDriver.id,
+    });
+
+    setDeleting(false);
+    if (err) {
+      showToast(err.message, 'error');
+    } else {
+      showToast(`司机 "${deletingDriver.full_name}" 已停用`, 'success');
+      setDeletingDriver(null);
+      void fetchData();
+    }
+  };
+
   const filteredDrivers = drivers?.filter(d => {
     if (filter === 'active') return d.is_active;
     if (filter === 'inactive') return !d.is_active;
@@ -125,7 +195,15 @@ export function DriversPage() {
 
   return (
     <div style={{ padding: '20px 16px', maxWidth: 800 }}>
-      <h2 style={{ margin: '0 0 16px', color: colors.primary, fontSize: font.sizes.xxl }}>司机管理</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h2 style={{ margin: 0, color: colors.primary, fontSize: font.sizes.xxl }}>司机管理</h2>
+        <button
+          onClick={() => setShowAddModal(true)}
+          style={{ padding: '8px 18px', background: colors.primary, color: '#fff', border: 'none', borderRadius: radius.md, cursor: 'pointer', fontWeight: font.weights.semibold, fontSize: font.sizes.sm }}
+        >
+          + 添加司机
+        </button>
+      </div>
 
       {error && (
         <div style={{ background: colors.dangerLight, color: colors.danger, padding: 12, borderRadius: radius.md, marginBottom: 16 }}>
@@ -172,6 +250,92 @@ export function DriversPage() {
               <button onClick={() => void handleSave()} disabled={saving || !editForm.full_name.trim()}
                 style={{ flex: 1, padding: 10, background: colors.primary, color: '#fff', border: 'none', borderRadius: radius.md, cursor: saving || !editForm.full_name.trim() ? 'not-allowed' : 'pointer', fontWeight: font.weights.semibold, fontSize: font.sizes.md, opacity: saving || !editForm.full_name.trim() ? 0.6 : 1 }}>
                 {saving ? '保存中…' : '保存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Driver Modal */}
+      {showAddModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="添加新司机"
+          onClick={e => { if (e.target === e.currentTarget) closeAddModal(); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 16 }}
+        >
+          <form
+            onSubmit={handleAddDriver}
+            style={{ background: colors.surface, borderRadius: radius.xl, padding: 28, maxWidth: 440, width: '92%', boxShadow: shadow.modal }}
+          >
+            <h3 style={{ margin: '0 0 18px', fontSize: font.sizes.xl, fontWeight: font.weights.bold }}>添加新司机</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>姓名 *</label>
+                <input value={addName} onChange={e => setAddName(e.target.value)} required placeholder="例: John Doe"
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${colors.divider}`, borderRadius: radius.sm, fontSize: font.sizes.md, boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>邮箱 *</label>
+                <input type="email" value={addEmail} onChange={e => setAddEmail(e.target.value)} required placeholder="driver@example.com"
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${colors.divider}`, borderRadius: radius.sm, fontSize: font.sizes.md, boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>初始密码 *</label>
+                <input type="password" value={addPassword} onChange={e => setAddPassword(e.target.value)} required minLength={6} placeholder="至少6位"
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${colors.divider}`, borderRadius: radius.sm, fontSize: font.sizes.md, boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>电话</label>
+                <input value={addPhone} onChange={e => setAddPhone(e.target.value)} placeholder="+255..."
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${colors.divider}`, borderRadius: radius.sm, fontSize: font.sizes.md, boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>车牌号</label>
+                <input value={addPlate} onChange={e => setAddPlate(e.target.value)} placeholder="T 123 ABC"
+                  style={{ width: '100%', padding: '8px 12px', border: `1px solid ${colors.divider}`, borderRadius: radius.sm, fontSize: font.sizes.md, boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button type="button" onClick={closeAddModal} style={{ flex: 1, padding: 10, background: colors.surface, color: colors.textSecondary, border: `1px solid ${colors.divider}`, borderRadius: radius.md, cursor: 'pointer', fontSize: font.sizes.md }}>
+                取消
+              </button>
+              <button type="submit" disabled={adding}
+                style={{ flex: 1, padding: 10, background: colors.primary, color: '#fff', border: 'none', borderRadius: radius.md, cursor: adding ? 'not-allowed' : 'pointer', fontWeight: font.weights.semibold, fontSize: font.sizes.md, opacity: adding ? 0.6 : 1 }}>
+                {adding ? '创建中…' : '创建'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingDriver && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="确认删除"
+          onClick={e => { if (e.target === e.currentTarget) setDeletingDriver(null); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 16 }}
+        >
+          <div style={{ background: colors.surface, borderRadius: radius.xl, padding: 28, maxWidth: 400, width: '92%', boxShadow: shadow.modal }}>
+            <h3 style={{ margin: '0 0 12px', color: colors.danger, fontSize: font.sizes.xl }}>确认删除</h3>
+            <p style={{ margin: '0 0 8px', fontSize: font.sizes.md, color: colors.text }}>
+              确定要停用司机 <strong>{deletingDriver.full_name}</strong> 吗？
+            </p>
+            <p style={{ margin: '0 0 20px', fontSize: font.sizes.sm, color: colors.textMuted }}>
+              系统将检查该司机是否有未结算的任务、未完成的对账或待审批的分数重置申请。
+              如果有，将无法停用。停用后，该司机将无法登录或执行任何操作。
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setDeletingDriver(null)}
+                style={{ padding: '8px 18px', borderRadius: radius.md, border: `1px solid ${colors.divider}`, background: colors.surface, color: colors.textSecondary, cursor: 'pointer', fontWeight: font.weights.semibold, fontSize: font.sizes.sm }}>
+                取消
+              </button>
+              <button onClick={() => void handleDeleteDriver()} disabled={deleting}
+                style={{ padding: '8px 18px', borderRadius: radius.md, border: 'none', background: colors.danger, color: '#fff', cursor: deleting ? 'not-allowed' : 'pointer', fontWeight: font.weights.semibold, fontSize: font.sizes.sm, opacity: deleting ? 0.6 : 1 }}>
+                {deleting ? '处理中…' : '确认停用'}
               </button>
             </div>
           </div>
@@ -262,6 +426,15 @@ export function DriversPage() {
                   >
                     ✎ 编辑
                   </button>
+                  {d.is_active && (
+                    <button
+                      onClick={() => setDeletingDriver(d)}
+                      aria-label={`停用司机 ${d.full_name}`}
+                      style={{ padding: '3px 10px', borderRadius: radius.badge, fontSize: font.sizes.xs, fontWeight: font.weights.semibold, background: colors.dangerLight, color: colors.danger, border: 'none', cursor: 'pointer' }}
+                    >
+                      🗑 停用
+                    </button>
+                  )}
                   <span style={{
                     padding: '3px 10px',
                     borderRadius: radius.badge,
@@ -353,4 +526,3 @@ export function DriversPage() {
     </div>
   );
 }
-
