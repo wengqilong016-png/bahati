@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { NavBar } from './components/NavBar';
+import { UpdateBanner } from './components/UpdateBanner';
 import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { KioskListPage } from './pages/KioskListPage';
@@ -27,6 +28,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5' }}>
+      <UpdateBanner />
       {children}
       <NavBar />
     </div>

@@ -1,0 +1,117 @@
+name: Release Driver APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/driver/package.json'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect version change
+        id: version
+        working-directory: apps/driver
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+
+          # Check if this version tag already exists
+          if git rev-parse "v$CURRENT" >/dev/null 2>&1; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node.js 22
+        if: steps.version.outputs.changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/driver/package-lock.json
+
+      - name: Set up Java 21
+        if: steps.version.outputs.changed == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Android SDK
+        if: steps.version.outputs.changed == 'true'
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        if: steps.version.outputs.changed == 'true'
+        working-directory: apps/driver
+        run: npm ci
+
+      - name: Validate Supabase secrets
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          if [ -z "${{ secrets.VITE_SUPABASE_URL }}" ] || [ -z "${{ secrets.VITE_SUPABASE_ANON_KEY }}" ]; then
+            echo "::error::VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY secrets must be configured"
+            exit 1
+          fi
+
+      - name: Create .env file
+        if: steps.version.outputs.changed == 'true'
+        working-directory: apps/driver
+        run: |
+          echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL || '' }}" >> .env
+          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY || '' }}" >> .env
+
+      - name: Build web app
+        if: steps.version.outputs.changed == 'true'
+        working-directory: apps/driver
+        run: npm run build
+
+      - name: Add Android platform
+        if: steps.version.outputs.changed == 'true'
+        working-directory: apps/driver
+        run: npm run cap:add:android
+
+      - name: Generate app icons
+        if: steps.version.outputs.changed == 'true'
+        working-directory: apps/driver
+        run: npx @capacitor/assets generate --android
+
+      - name: Sync Capacitor
+        if: steps.version.outputs.changed == 'true'
+        working-directory: apps/driver
+        run: npm exec cap -- sync android
+
+      - name: Build debug APK
+        if: steps.version.outputs.changed == 'true'
+        working-directory: apps/driver/android
+        run: ./gradlew assembleDebug
+
+      - name: Rename APK with version
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          mv apps/driver/android/app/build/outputs/apk/debug/app-debug.apk \
+             apps/driver/android/app/build/outputs/apk/debug/bahati-driver-v${{ steps.version.outputs.current }}.apk
+
+      - name: Create GitHub Release
+        if: steps.version.outputs.changed == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.current }}
+          name: Driver v${{ steps.version.outputs.current }}
+          body: |
+            ## Driver App v${{ steps.version.outputs.current }}
+
+            APK 已自动构建并附在下方，点击下载安装即可更新。
+          files: apps/driver/android/app/build/outputs/apk/debug/bahati-driver-v${{ steps.version.outputs.current }}.apk
+          draft: false
+          prerelease: false
