@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { DataTable, type Column } from '../components/DataTable';
+import { fmtCurrency } from '../lib/format';
 
 interface DriverLedgerEntry {
   id: string;
@@ -44,7 +45,7 @@ export function DriverLedgerPage() {
 
     if (filterDriver) query = query.eq('driver_id', filterDriver);
     if (filterFrom) query = query.gte('created_at', filterFrom);
-    if (filterTo) query = query.lte('created_at', filterTo + 'T23:59:59');
+    if (filterTo) query = query.lte('created_at', filterTo + 'T23:59:59+03:00');
 
     const { data, error: err } = await query;
     if (err) setError(err.message);
@@ -78,7 +79,7 @@ export function DriverLedgerPage() {
         if (amount === 0) return '—';
         return (
           <span style={{ color: amount < 0 ? '#c62828' : '#1e7e34', fontWeight: 600 }}>
-            {amount < 0 ? '' : '+'}IDR {amount.toLocaleString()}
+            {amount < 0 ? '' : '+'}{fmtCurrency(amount)}
           </span>
         );
       },
@@ -91,7 +92,7 @@ export function DriverLedgerPage() {
         if (amount === 0) return '—';
         return (
           <span style={{ color: amount < 0 ? '#c62828' : '#1e7e34', fontWeight: 600 }}>
-            {amount < 0 ? '' : '+'}IDR {amount.toLocaleString()}
+            {amount < 0 ? '' : '+'}{fmtCurrency(amount)}
           </span>
         );
       },
@@ -99,7 +100,7 @@ export function DriverLedgerPage() {
     {
       key: 'coin_balance_after',
       header: 'Coin Bal.',
-      render: row => `IDR ${Number(row.coin_balance_after).toLocaleString()}`,
+      render: row => fmtCurrency(Number(row.coin_balance_after)),
     },
     { key: 'description', header: 'Description' },
   ];

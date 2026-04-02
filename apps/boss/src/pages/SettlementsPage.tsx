@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { DataTable, type Column } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
+import { fmtCurrency } from '../lib/format';
 
 interface Reconciliation {
   id: string;
@@ -73,12 +74,12 @@ export function SettlementsPage() {
     {
       key: 'total_gross_revenue',
       header: 'Revenue',
-      render: row => `IDR ${Number(row.total_gross_revenue).toLocaleString()}`,
+      render: row => fmtCurrency(Number(row.total_gross_revenue)),
     },
     {
       key: 'total_expense_amount',
       header: 'Expense',
-      render: row => `IDR ${Number(row.total_expense_amount).toLocaleString()}`,
+      render: row => fmtCurrency(Number(row.total_expense_amount)),
     },
     {
       key: 'status',
