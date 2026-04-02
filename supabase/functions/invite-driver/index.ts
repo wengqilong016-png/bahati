@@ -56,8 +56,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Check caller has boss role
-    const callerRole = callerUser.user_metadata?.role;
+    // Check caller has boss role from trusted server-managed metadata
+    const callerRole = callerUser.app_metadata?.role;
     if (callerRole !== 'boss') {
       return new Response(
         JSON.stringify({ error: 'Permission denied: boss only' }),
