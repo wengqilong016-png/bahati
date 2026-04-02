@@ -6,3 +6,4 @@ dist/
 
 apps/driver/dist/
 apps/boss/dist/
+supabase/.temp/
