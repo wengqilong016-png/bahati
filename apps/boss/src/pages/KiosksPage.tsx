@@ -244,21 +244,23 @@ export function KiosksPage() {
     merchant_contact: k.merchants?.phone ?? '—',
     gps: k.latitude != null && k.longitude != null
       ? (
-        <span
+        <button
+          type="button"
           onClick={() => openCoordEditor(k)}
-          style={{ color: colors.success, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
+          style={{ background: 'none', border: 'none', padding: 0, color: colors.success, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
           title={`${k.latitude}, ${k.longitude}`}
         >
           📍 已定位
-        </span>
+        </button>
       )
       : (
-        <span
+        <button
+          type="button"
           onClick={() => openCoordEditor(k)}
-          style={{ color: colors.warning, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
+          style={{ background: 'none', border: 'none', padding: 0, color: colors.warning, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
         >
           ⚠ 设置
-        </span>
+        </button>
       ),
   })) as unknown as Record<string, unknown>[] | null;
 

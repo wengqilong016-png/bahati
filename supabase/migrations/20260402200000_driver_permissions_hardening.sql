@@ -47,12 +47,12 @@ BEGIN
     AND srr.status = 'pending';
 
   IF v_pending_tasks > 0 THEN
-    RAISE EXCEPTION 'Cannot deactivate: driver has % unsettled task(s) today', v_pending_tasks
+    RAISE EXCEPTION 'Cannot deactivate: driver has % unsettled task(s) on record', v_pending_tasks
       USING ERRCODE = 'P0001';
   END IF;
 
   IF v_pending_reconc > 0 THEN
-    RAISE EXCEPTION 'Cannot deactivate: driver has draft reconciliation(s) today'
+    RAISE EXCEPTION 'Cannot deactivate: driver has % draft reconciliation(s) on record', v_pending_reconc
       USING ERRCODE = 'P0001';
   END IF;
 

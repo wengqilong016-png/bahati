@@ -3,7 +3,8 @@
 // Only callable by authenticated boss users.
 //
 // Requires environment variables:
-//   SUPABASE_URL          – set automatically by Supabase
+//   SUPABASE_URL              – set automatically by Supabase
+//   SUPABASE_ANON_KEY         – set automatically by Supabase
 //   SUPABASE_SERVICE_ROLE_KEY – set in project secrets
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
@@ -11,6 +12,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 interface InviteBody {
@@ -104,10 +106,20 @@ Deno.serve(async (req: Request) => {
 
     // 4. Update license_plate if provided (the trigger only sets full_name and phone)
     if (license_plate && newUser.user) {
-      await adminClient
+      const { error: licensePlateError } = await adminClient
         .from('drivers')
         .update({ license_plate })
         .eq('id', newUser.user.id);
+
+      if (licensePlateError) {
+        // Roll back: delete the auth user to avoid a partially-initialized driver
+        await adminClient.auth.admin.deleteUser(newUser.user.id);
+
+        return new Response(
+          JSON.stringify({ error: `Failed to initialize driver record: ${licensePlateError.message}` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
     }
 
     return new Response(
