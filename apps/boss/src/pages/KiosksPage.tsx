@@ -174,6 +174,14 @@ export function KiosksPage() {
       showToast('请输入有效的经纬度数值', 'error');
       return;
     }
+    if (lat < -90 || lat > 90) {
+      showToast('纬度必须在 -90 到 90 之间', 'error');
+      return;
+    }
+    if (lng < -180 || lng > 180) {
+      showToast('经度必须在 -180 到 180 之间', 'error');
+      return;
+    }
     setSavingCoords(true);
     const { error: err } = await supabase.rpc('update_kiosk_coordinates', {
       p_kiosk_id: coordKiosk.id,
