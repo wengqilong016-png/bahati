@@ -26,20 +26,18 @@ BEGIN
       USING ERRCODE = 'P0002';
   END IF;
 
-  -- Check for unsettled tasks (tasks that have task_settlements with pending items)
+  -- Check for unsettled tasks (tasks without settlements, any date)
   SELECT count(*) INTO v_pending_tasks
   FROM public.tasks t
   WHERE t.driver_id = p_driver_id
-    AND t.task_date = CURRENT_DATE
     AND NOT EXISTS (
       SELECT 1 FROM public.task_settlements ts WHERE ts.task_id = t.id
     );
 
-  -- Check for unsubmitted reconciliations today
+  -- Check for unsubmitted reconciliations (any draft status)
   SELECT count(*) INTO v_pending_reconc
   FROM public.daily_driver_reconciliations ddr
   WHERE ddr.driver_id = p_driver_id
-    AND ddr.reconciliation_date = CURRENT_DATE
     AND ddr.status = 'draft';
 
   -- Check for pending score reset requests
