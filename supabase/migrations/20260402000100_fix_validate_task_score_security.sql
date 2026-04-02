@@ -28,6 +28,13 @@ BEGIN
     RAISE EXCEPTION 'Kiosk not found: %', NEW.kiosk_id;
   END IF;
 
+  -- Because this function runs as SECURITY DEFINER and bypasses RLS, re-check
+  -- that the kiosk is still assigned to the driver associated with this task.
+  IF v_kiosk.assigned_driver_id IS DISTINCT FROM NEW.driver_id THEN
+    RAISE EXCEPTION
+      'Kiosk % is not assigned to driver %; cannot update last_recorded_score.',
+      NEW.kiosk_id, NEW.driver_id;
+  END IF;
   -- Validate monotone score requirement
   IF NEW.current_score <= v_kiosk.last_recorded_score THEN
     RAISE EXCEPTION 'current_score (%) must be greater than last_recorded_score (%). If the score decreased, submit a score_reset_request instead.',
