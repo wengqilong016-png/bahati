@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { fmtCurrency, fmtPercent } from '../lib/format';
 import { colors, radius, shadow, font } from '../lib/theme';
@@ -44,7 +44,11 @@ export function MerchantsPage() {
   const [editForm, setEditForm] = useState<EditMerchantForm>({ name: '', contact_name: '', phone: '', address: '', is_active: true, dividend_rate: '0' });
   const [saving, setSaving] = useState(false);
 
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
   const fetchData = useCallback(async () => {
+    setError(null);
     setLoading(true);
 
     const [merchantsRes, kiosksRes, balancesRes] = await Promise.all([
@@ -52,6 +56,8 @@ export function MerchantsPage() {
       supabase.from('kiosks').select('merchant_id'),
       supabase.rpc('read_merchant_balances'),
     ]);
+
+    if (!mountedRef.current) return;
 
     if (merchantsRes.error) { setError(merchantsRes.error.message); setLoading(false); return; }
     if (balancesRes.error) { setError('数据加载失败'); setLoading(false); return; }

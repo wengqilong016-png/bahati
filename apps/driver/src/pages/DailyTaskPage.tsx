@@ -18,13 +18,13 @@ export function DailyTaskPage() {
 
   // Stable ID for storage path — reuse existing task's ID when one already exists
   const taskIdRef = useRef<string>(crypto.randomUUID());
+  const today = getTodayDarEsSalaam();
   const existingTask = useLiveQuery(
     () => {
       if (!kioskId) return undefined;
-      const today = getTodayDarEsSalaam();
       return db.tasks.where('[kiosk_id+task_date]').equals([kioskId, today]).first();
     },
-    [kioskId],
+    [kioskId, today],
   );
   const taskId = existingTask?.id ?? taskIdRef.current;
 

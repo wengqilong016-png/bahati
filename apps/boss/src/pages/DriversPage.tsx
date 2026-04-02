@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { fmtCurrency } from '../lib/format';
 import { getTodayDarEsSalaam } from '../lib/utils';
@@ -45,13 +45,19 @@ export function DriversPage() {
   const [editForm, setEditForm] = useState<EditDriverForm>({ full_name: '', phone: '', license_plate: '', is_active: true });
   const [saving, setSaving] = useState(false);
 
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
   const fetchData = useCallback(async () => {
+    setError(null);
     setLoading(true);
     const today = getTodayDarEsSalaam();
     const [driversRes, reconcRes] = await Promise.all([
       supabase.from('drivers').select('*').order('created_at', { ascending: false }),
       supabase.from('daily_driver_reconciliations').select('driver_id, status, coin_variance, cash_variance').eq('reconciliation_date', today),
     ]);
+
+    if (!mountedRef.current) return;
 
     if (driversRes.error) setError(driversRes.error.message);
     else setDrivers(driversRes.data as Driver[]);
