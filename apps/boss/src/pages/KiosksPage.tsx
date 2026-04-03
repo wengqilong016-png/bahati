@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, type ReactNode, FormEvent } from 'react';
 import { supabase } from '../supabase';
 import { DataTable, type Column } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
@@ -34,6 +34,8 @@ interface OnboardingRecord {
   created_at: string;
   drivers: { full_name: string | null } | null;
 }
+
+type KioskRow = Kiosk & { merchant_name: string; merchant_contact: string; gps: ReactNode };
 
 interface EditKioskForm {
   serial_number: string;
@@ -207,7 +209,7 @@ export function KiosksPage() {
     }
   };
 
-  const columns: Column<Record<string, unknown>>[] = [
+  const columns: Column<KioskRow>[] = [
     { key: 'serial_number', header: '序列号', width: '110px' },
     { key: 'merchant_name', header: '商家' },
     { key: 'location_name', header: '地点' },
@@ -239,13 +241,13 @@ export function KiosksPage() {
       render: row => (
         <div style={{ display: 'flex', gap: 6 }}>
           <button
-            onClick={() => openEdit(row as unknown as Kiosk)}
+            onClick={() => openEdit(row)}
             style={{ padding: '4px 10px', fontSize: 12, background: colors.primaryLight, color: colors.primary, border: 'none', borderRadius: radius.sm, cursor: 'pointer', fontWeight: 600 }}
           >
             ✎ 编辑
           </button>
           <button
-            onClick={() => void openPhotos(row as unknown as Kiosk)}
+            onClick={() => void openPhotos(row)}
             style={{ padding: '4px 10px', fontSize: 12, background: colors.infoLight, color: colors.info, border: 'none', borderRadius: radius.sm, cursor: 'pointer', fontWeight: 600 }}
           >
             📷 照片
@@ -279,7 +281,7 @@ export function KiosksPage() {
           ⚠ 设置
         </button>
       ),
-  })) as unknown as Record<string, unknown>[] | null;
+  })) ?? null;
 
   const typeLabel: Record<string, string> = { initial: '首次进场', recertification: '复检' };
   const statusColor: Record<string, string> = { pending: colors.warning, approved: colors.success, rejected: colors.danger };
@@ -396,7 +398,7 @@ export function KiosksPage() {
             </p>
 
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>纬度 (Latitude) *</label>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>纬度 *</label>
               <input
                 type="number"
                 step="any"
@@ -409,7 +411,7 @@ export function KiosksPage() {
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>经度 (Longitude) *</label>
+              <label style={{ display: 'block', marginBottom: 4, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>经度 *</label>
               <input
                 type="number"
                 step="any"

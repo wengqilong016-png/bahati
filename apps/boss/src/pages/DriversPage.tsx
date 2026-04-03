@@ -5,6 +5,7 @@ import { getTodayDarEsSalaam } from '../lib/utils';
 import { colors, radius, shadow, font } from '../lib/theme';
 import { CardListSkeleton } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
+import { useModalKeyboard } from '../hooks/useModalKeyboard';
 
 interface Driver {
   id: string;
@@ -100,7 +101,21 @@ export function DriversPage() {
     setEditForm({ full_name: d.full_name ?? '', phone: d.phone ?? '', license_plate: d.license_plate ?? '', is_active: d.is_active });
   };
 
-  const closeEdit = () => { setEditDriver(null); setSaving(false); };
+  const closeEdit = useCallback(() => { setEditDriver(null); setSaving(false); }, []);
+  const editOverlayRef = useModalKeyboard(editDriver !== null, closeEdit);
+
+  const closeAddModalFn = useCallback(() => {
+    setShowAddModal(false);
+    setAddEmail('');
+    setAddPassword('');
+    setAddName('');
+    setAddPhone('');
+    setAddPlate('');
+  }, []);
+  const addOverlayRef = useModalKeyboard(showAddModal, closeAddModalFn);
+
+  const closeDeleteModal = useCallback(() => { setDeletingDriver(null); setDeleting(false); }, []);
+  const deleteOverlayRef = useModalKeyboard(deletingDriver !== null, closeDeleteModal);
 
   const handleSave = async () => {
     if (!editDriver) return;
@@ -119,16 +134,6 @@ export function DriversPage() {
       closeEdit();
       void fetchData();
     }
-  };
-
-  // --- Add driver ---
-  const closeAddModal = () => {
-    setShowAddModal(false);
-    setAddEmail('');
-    setAddPassword('');
-    setAddName('');
-    setAddPhone('');
-    setAddPlate('');
   };
 
   const handleAddDriver = async (e: FormEvent) => {
@@ -153,7 +158,7 @@ export function DriversPage() {
       showToast(data.error, 'error');
     } else {
       showToast(`司机 "${addName}" 创建成功`, 'success');
-      closeAddModal();
+      closeAddModalFn();
       void fetchData();
     }
   };
@@ -173,7 +178,7 @@ export function DriversPage() {
       showToast(err.message, 'error');
     } else {
       showToast(`司机 "${deletingDriver.full_name}" 已停用`, 'success');
-      setDeletingDriver(null);
+      closeDeleteModal();
       void fetchData();
     }
   };
@@ -214,6 +219,7 @@ export function DriversPage() {
       {/* Edit Driver Modal */}
       {editDriver && (
         <div
+          ref={editOverlayRef}
           role="dialog"
           aria-modal="true"
           aria-label="编辑司机资料"
@@ -259,10 +265,11 @@ export function DriversPage() {
       {/* Add Driver Modal */}
       {showAddModal && (
         <div
+          ref={addOverlayRef}
           role="dialog"
           aria-modal="true"
           aria-label="添加新司机"
-          onClick={e => { if (e.target === e.currentTarget) closeAddModal(); }}
+          onClick={e => { if (e.target === e.currentTarget) closeAddModalFn(); }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 16 }}
         >
           <form
@@ -298,7 +305,7 @@ export function DriversPage() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <button type="button" onClick={closeAddModal} style={{ flex: 1, padding: 10, background: colors.surface, color: colors.textSecondary, border: `1px solid ${colors.divider}`, borderRadius: radius.md, cursor: 'pointer', fontSize: font.sizes.md }}>
+              <button type="button" onClick={closeAddModalFn} style={{ flex: 1, padding: 10, background: colors.surface, color: colors.textSecondary, border: `1px solid ${colors.divider}`, borderRadius: radius.md, cursor: 'pointer', fontSize: font.sizes.md }}>
                 取消
               </button>
               <button type="submit" disabled={adding}
@@ -313,10 +320,11 @@ export function DriversPage() {
       {/* Delete Confirmation Modal */}
       {deletingDriver && (
         <div
+          ref={deleteOverlayRef}
           role="dialog"
           aria-modal="true"
           aria-label="确认删除"
-          onClick={e => { if (e.target === e.currentTarget) setDeletingDriver(null); }}
+          onClick={e => { if (e.target === e.currentTarget) closeDeleteModal(); }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 16 }}
         >
           <div style={{ background: colors.surface, borderRadius: radius.xl, padding: 28, maxWidth: 400, width: '92%', boxShadow: shadow.modal }}>
@@ -329,7 +337,7 @@ export function DriversPage() {
               如果有，将无法停用。停用后，该司机将无法登录或执行任何操作。
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeletingDriver(null)}
+              <button onClick={closeDeleteModal}
                 style={{ padding: '8px 18px', borderRadius: radius.md, border: `1px solid ${colors.divider}`, background: colors.surface, color: colors.textSecondary, cursor: 'pointer', fontWeight: font.weights.semibold, fontSize: font.sizes.sm }}>
                 取消
               </button>

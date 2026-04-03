@@ -64,30 +64,27 @@ export function SettlementsPage() {
     setConfirmingId(null);
   };
 
-  const columns: Column<Record<string, unknown>>[] = [
-    { key: 'reconciliation_date', header: 'Date', width: '110px' },
+  const columns: Column<Reconciliation>[] = [
+    { key: 'reconciliation_date', header: '日期', width: '110px' },
     {
       key: 'driver',
-      header: 'Driver',
-      render: row => {
-        const s = row as unknown as Reconciliation;
-        return s.drivers?.full_name ?? '—';
-      },
+      header: '司机',
+      render: row => row.drivers?.full_name ?? '—',
     },
-    { key: 'total_kiosks_visited', header: 'Kiosks', width: '80px' },
+    { key: 'total_kiosks_visited', header: '机器数', width: '80px' },
     {
       key: 'total_gross_revenue',
-      header: 'Revenue',
+      header: '收入',
       render: row => fmtCurrency(Number(row.total_gross_revenue)),
     },
     {
       key: 'total_expense_amount',
-      header: 'Expense',
+      header: '支出',
       render: row => fmtCurrency(Number(row.total_expense_amount)),
     },
     {
       key: 'status',
-      header: 'Status',
+      header: '状态',
       render: row => <StatusBadge status={String(row.status)} />,
     },
     {
@@ -114,18 +111,16 @@ export function SettlementsPage() {
               fontWeight: 600,
             }}
           >
-            {confirmingId === id ? 'Confirming...' : 'Confirm'}
+            {confirmingId === id ? '确认中...' : '确认'}
           </button>
         );
       },
     },
   ];
 
-  const rows = reconciliations as unknown as Record<string, unknown>[] | null;
-
   return (
     <div style={{ padding: 24 }}>
-      <h2 style={{ margin: '0 0 20px', color: '#0066CC' }}>Daily Reconciliations</h2>
+      <h2 style={{ margin: '0 0 20px', color: '#0066CC' }}>日结管理</h2>
 
       {error && (
         <div
@@ -151,10 +146,10 @@ export function SettlementsPage() {
       >
         <DataTable
           columns={columns}
-          rows={rows}
+          rows={reconciliations}
           loading={loading}
           keyField="id"
-          emptyMessage="No reconciliations found."
+          emptyMessage="暂无对账记录"
         />
       </div>
     </div>

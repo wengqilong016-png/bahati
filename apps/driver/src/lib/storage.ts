@@ -15,7 +15,7 @@ import { supabase } from './supabase';
 import { getTodayDarEsSalaam } from './utils';
 
 const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
-const MAX_WIDTH = 1920;
+const MAX_WIDTH = 1280; // Enough for task-verification photos; saves memory & bandwidth on low-end phones
 export const STORAGE_BUCKETS = {
   TASK_PHOTOS: 'task-photos',
   ONBOARDING_PHOTOS: 'onboarding-photos',
@@ -65,13 +65,14 @@ function fileToDataUrl(file: File): Promise<string> {
 }
 
 /**
- * Compress the image if it exceeds 2 MB.
- * Resizes to max 1920 px width then progressively lowers JPEG quality (0.85 → 0.70 → 0.55 → 0.40)
- * until the result is ≤ 2 MB or the minimum quality is reached.
- * Always returns a JPEG File named with a `.jpg` extension.
+ * Compress and resize photos before upload.
+ * - Always converts to JPEG and resizes to max 1280px width (even small files)
+ * - If still > 2 MB after resize, progressively lowers quality (0.70 → 0.55 → 0.40)
+ * - Optimised for low-end Android phones: saves memory, bandwidth, and storage
  */
 async function compressIfNeeded(file: File): Promise<File> {
-  if (file.size <= MAX_SIZE_BYTES) return file;
+  // Skip if already a small JPEG under 500 KB — no need to re-encode
+  if (file.size <= 500_000 && file.type === 'image/jpeg') return file;
 
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -103,24 +104,18 @@ async function compressIfNeeded(file: File): Promise<File> {
               reject(new Error('Image compression failed'));
               return;
             }
-            if (blob.size <= MAX_SIZE_BYTES) {
+            if (blob.size <= MAX_SIZE_BYTES || quality <= 0.4) {
               resolve(new File([blob], name, { type: 'image/jpeg' }));
               return;
             }
-            const nextQuality = quality - 0.15;
-            if (nextQuality >= 0.4) {
-              tryCompress(nextQuality);
-              return;
-            }
-            // Compressed to minimum quality — accept even if still above limit
-            resolve(new File([blob], name, { type: 'image/jpeg' }));
+            tryCompress(quality - 0.15);
           },
           'image/jpeg',
           quality,
         );
       };
 
-      tryCompress(0.85);
+      tryCompress(0.70);
     };
 
     img.onerror = () => {

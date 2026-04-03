@@ -48,11 +48,18 @@ export function useConnectionStatus(): ConnectionStatus {
     };
 
     void probe();
-    const interval = setInterval(() => { void probe(); }, 30_000);
+    const interval = setInterval(() => { void probe(); }, 60_000); // 60s — saves battery on low-end phones
+
+    // Pause polling when app is in background, resume when visible
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void probe();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
 

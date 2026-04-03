@@ -23,11 +23,11 @@ type SortDir = 'asc' | 'desc';
 
 const PAGE_SIZES = [10, 20, 50];
 
-export function DataTable<T extends Record<string, unknown>>({
+export function DataTable<T extends object>({
   columns,
   rows,
   loading = false,
-  emptyMessage = 'No data found.',
+  emptyMessage = '未找到数据',
   pageSize: defaultPageSize = 20,
   keyField,
 }: DataTableProps<T>) {
@@ -71,8 +71,8 @@ export function DataTable<T extends Record<string, unknown>>({
   let displayRows = [...rows];
   if (sortKey) {
     displayRows.sort((a, b) => {
-      const av = a[sortKey as keyof T];
-      const bv = b[sortKey as keyof T];
+      const av = (a as Record<string, unknown>)[sortKey];
+      const bv = (b as Record<string, unknown>)[sortKey];
       const cmp = String(av ?? '').localeCompare(String(bv ?? ''), undefined, { numeric: true });
       return sortDir === 'asc' ? cmp : -cmp;
     });
@@ -183,7 +183,7 @@ export function DataTable<T extends Record<string, unknown>>({
           </thead>
           <tbody>
             {pageRows.map((row, idx) => {
-              const rowKey = String(row[keyField]);
+              const rowKey = String((row as Record<string, unknown>)[String(keyField)]);
               const isHovered = hoveredRow === rowKey;
               return (
                 <tr
@@ -208,7 +208,7 @@ export function DataTable<T extends Record<string, unknown>>({
                     >
                       {col.render
                         ? col.render(row)
-                        : String(row[col.key as keyof T] ?? '')}
+                        : String((row as Record<string, unknown>)[String(col.key)] ?? '')}
                     </td>
                   ))}
                 </tr>
@@ -221,7 +221,7 @@ export function DataTable<T extends Record<string, unknown>>({
       {/* Mobile card list view */}
       <div className="boss-card-list" style={{ display: 'none', flexDirection: 'column', gap: 10, padding: 12 }}>
         {pageRows.map(row => {
-          const rowKey = String(row[keyField]);
+          const rowKey = String((row as Record<string, unknown>)[String(keyField)]);
           return (
             <div
               key={rowKey}
@@ -239,7 +239,7 @@ export function DataTable<T extends Record<string, unknown>>({
                     {col.header}
                   </span>
                   <span style={{ fontSize: font.sizes.sm, color: colors.text, textAlign: 'right' }}>
-                    {col.render ? col.render(row) : String(row[col.key as keyof T] ?? '')}
+                    {col.render ? col.render(row) : String((row as Record<string, unknown>)[String(col.key)] ?? '')}
                   </span>
                 </div>
               ))}

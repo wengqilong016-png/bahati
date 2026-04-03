@@ -1,0 +1,40 @@
+name: CI — Typecheck
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck-driver:
+    name: Typecheck Driver App
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/driver
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/driver/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  typecheck-boss:
+    name: Typecheck Boss App
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/boss
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/boss/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit

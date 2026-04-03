@@ -169,7 +169,7 @@ export function MapOverviewPage() {
         ))}
       </div>
 
-      {loading && <p style={{ color: '#666', textAlign: 'center', padding: 40 }}>Loading...</p>}
+      {loading && <p style={{ color: '#666', textAlign: 'center', padding: 40 }}>加载中...</p>}
 
       {/* Leaflet Map */}
       {!loading && (

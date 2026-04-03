@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { PhotoCapture } from '../components/PhotoCapture';
 import { useAuth } from '../hooks/useAuth';
+import { useGeolocation } from '../hooks/useGeolocation';
 import { db } from '../lib/db';
 import type { OnboardingType } from '../lib/types';
 import { ONBOARDING_TYPES } from '../lib/types';
@@ -13,6 +14,7 @@ export function OnboardKioskPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const geo = useGeolocation();
   const kiosks = useLiveQuery(() => db.kiosks.toArray(), []);
 
   // Existing onboarding records to show submission status
@@ -82,6 +84,9 @@ export function OnboardKioskPage() {
     setError(null);
     setSaving(true);
 
+    // Capture GPS silently (non-blocking — submit proceeds even if GPS fails)
+    const gpsCoords = geo.coords ?? await geo.capture();
+
     try {
       if (isRecert) {
         await saveOnboarding({
@@ -90,6 +95,8 @@ export function OnboardKioskPage() {
           onboardingType,
           photoUrls: photos,
           notes: notes.trim(),
+          latitude: gpsCoords?.latitude,
+          longitude: gpsCoords?.longitude,
         });
         const { processQueue } = await import('../lib/sync');
         await processQueue();
@@ -111,6 +118,8 @@ export function OnboardKioskPage() {
           dividendRate: Number.isNaN(parsedDividendRate) ? 0.15 : parsedDividendRate,
           photoUrls: photos,
           notes: notes.trim(),
+          latitude: gpsCoords?.latitude,
+          longitude: gpsCoords?.longitude,
         });
       }
       setSaved(true);
@@ -383,6 +392,37 @@ export function OnboardKioskPage() {
             <p style={{ margin: '6px 0 0', fontSize: 12, color: '#e65100' }}>
               At least one photo is required for onboarding.
             </p>
+          )}
+        </div>
+
+        {/* GPS location */}
+        <div style={{ marginBottom: 20, padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label style={{ fontWeight: 600, fontSize: 14 }}>📍 GPS Location</label>
+            <button
+              type="button"
+              disabled={geo.loading || saving}
+              onClick={() => void geo.capture()}
+              style={{
+                padding: '6px 14px', border: '1px solid #0066CC', borderRadius: 6,
+                background: geo.loading ? '#f0f0f0' : '#fff', color: '#0066CC',
+                fontSize: 13, cursor: geo.loading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {geo.loading ? 'Locating…' : geo.coords ? '🔄 Refresh' : '📍 Capture'}
+            </button>
+          </div>
+          {geo.coords && (
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#2e7d32' }}>
+              ✅ {geo.coords.latitude.toFixed(6)}, {geo.coords.longitude.toFixed(6)}
+              {geo.coords.accuracy != null && ` (±${Math.round(geo.coords.accuracy)}m)`}
+            </p>
+          )}
+          {geo.error && (
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#c62828' }}>⚠️ {geo.error}</p>
+          )}
+          {!geo.coords && !geo.error && !geo.loading && (
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#888' }}>GPS will be captured on submit</p>
           )}
         </div>
 

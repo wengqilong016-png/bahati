@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { PhotoCapture } from '../components/PhotoCapture';
 import { useAuth } from '../hooks/useAuth';
+import { useGeolocation } from '../hooks/useGeolocation';
 import { validateDailyTaskScore } from '../lib/validation';
 import { saveDailyTask } from '../lib/actions';
 import { uploadTaskPhoto } from '../lib/storage';
@@ -14,6 +15,7 @@ export function DailyTaskPage() {
   const { kioskId } = useParams<{ kioskId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const geo = useGeolocation();
   const kiosk = useLiveQuery(() => db.kiosks.get(kioskId ?? ''), [kioskId]);
 
   // Stable ID for storage path — reuse existing task's ID when one already exists
@@ -49,6 +51,9 @@ export function DailyTaskPage() {
     setError(null);
     setSaving(true);
 
+    // Capture GPS silently (non-blocking)
+    const gpsCoords = geo.coords ?? await geo.capture();
+
     try {
       await saveDailyTask({
         id: taskId,
@@ -57,6 +62,8 @@ export function DailyTaskPage() {
         lastRecordedScore: kiosk.last_recorded_score,
         photoUrls: photos,
         notes,
+        latitude: gpsCoords?.latitude,
+        longitude: gpsCoords?.longitude,
       });
       // Sync: push task to server (triggers compute score_before, dividend_rate_snapshot),
       // then pull enriched data back so SettlementPage has settlement fields.

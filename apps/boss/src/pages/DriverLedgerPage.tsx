@@ -55,25 +55,22 @@ export function DriverLedgerPage() {
 
   useEffect(() => { void fetchEntries(); }, [filterDriver, filterFrom, filterTo]);
 
-  const columns: Column<Record<string, unknown>>[] = [
+  const columns: Column<DriverLedgerEntry>[] = [
     {
       key: 'created_at',
-      header: 'Date',
+      header: '日期',
       render: row => new Date(String(row.created_at)).toLocaleDateString(),
       width: '100px',
     },
     {
       key: 'driver',
-      header: 'Driver',
-      render: row => {
-        const e = row as unknown as DriverLedgerEntry;
-        return e.drivers?.full_name ?? '—';
-      },
+      header: '司机',
+      render: row => row.drivers?.full_name ?? '—',
     },
-    { key: 'txn_type', header: 'Type', width: '130px' },
+    { key: 'txn_type', header: '类型', width: '130px' },
     {
       key: 'coin_amount',
-      header: 'Coin',
+      header: '硬币',
       render: row => {
         const amount = Number(row.coin_amount);
         if (amount === 0) return '—';
@@ -86,7 +83,7 @@ export function DriverLedgerPage() {
     },
     {
       key: 'cash_amount',
-      header: 'Cash',
+      header: '现金',
       render: row => {
         const amount = Number(row.cash_amount);
         if (amount === 0) return '—';
@@ -99,42 +96,40 @@ export function DriverLedgerPage() {
     },
     {
       key: 'coin_balance_after',
-      header: 'Coin Bal.',
+      header: '硬币余额',
       render: row => fmtCurrency(Number(row.coin_balance_after)),
     },
-    { key: 'description', header: 'Description' },
+    { key: 'description', header: '描述' },
   ];
-
-  const rows = entries as unknown as Record<string, unknown>[] | null;
 
   return (
     <div style={{ padding: 24 }}>
-      <h2 style={{ margin: '0 0 20px', color: '#0066CC' }}>Driver Ledger</h2>
+      <h2 style={{ margin: '0 0 20px', color: '#0066CC' }}>司机台账</h2>
 
       {error && <div style={{ background: '#fce8e6', color: '#c62828', padding: 12, borderRadius: 8, marginBottom: 16 }}>{error}</div>}
 
       {/* Filters */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20, background: '#fff', padding: 16, borderRadius: 12, border: '1px solid #e0e0e0' }}>
         <div>
-          <label style={{ display: 'block', fontSize: 12, color: '#888', marginBottom: 4 }}>Driver</label>
+          <label style={{ display: 'block', fontSize: 12, color: '#888', marginBottom: 4 }}>司机</label>
           <select
             value={filterDriver}
             onChange={e => setFilterDriver(e.target.value)}
             style={{ padding: '7px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14 }}
           >
-            <option value="">All Drivers</option>
+            <option value="">全部司机</option>
             {drivers.map(d => (
               <option key={d.id} value={d.id}>{d.full_name ?? d.id.slice(0, 8)}</option>
             ))}
           </select>
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: 12, color: '#888', marginBottom: 4 }}>From</label>
+          <label style={{ display: 'block', fontSize: 12, color: '#888', marginBottom: 4 }}>起始日期</label>
           <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)}
             style={{ padding: '7px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14 }} />
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: 12, color: '#888', marginBottom: 4 }}>To</label>
+          <label style={{ display: 'block', fontSize: 12, color: '#888', marginBottom: 4 }}>截止日期</label>
           <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)}
             style={{ padding: '7px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14 }} />
         </div>
@@ -143,7 +138,7 @@ export function DriverLedgerPage() {
             onClick={() => { setFilterDriver(''); setFilterFrom(''); setFilterTo(''); }}
             style={{ padding: '7px 14px', background: '#fff', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
           >
-            Clear
+            清除
           </button>
         </div>
       </div>
@@ -151,10 +146,10 @@ export function DriverLedgerPage() {
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e0e0e0', overflow: 'hidden' }}>
         <DataTable
           columns={columns}
-          rows={rows}
+          rows={entries}
           loading={loading}
           keyField="id"
-          emptyMessage="No ledger entries found."
+          emptyMessage="暂无台账记录"
         />
       </div>
     </div>
