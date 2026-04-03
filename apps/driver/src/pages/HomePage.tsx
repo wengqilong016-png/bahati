@@ -60,6 +60,7 @@ export function HomePage() {
         <ActionButton icon="📋" label="记录每日任务" subtitle="选择机器并提交" onClick={() => navigate('/kiosks')} />
         <ActionButton icon="➕" label="新机入网" subtitle="登记新机器" onClick={() => navigate('/onboard')} />
         <ActionButton icon="🔄" label="复查" subtitle="复查现有机器" onClick={() => navigate('/onboard?type=recertification')} />
+        <ActionButton icon="📊" label="今日汇总" subtitle="查看今日工作" onClick={() => navigate('/summary')} />
       </div>
     </div>
   );

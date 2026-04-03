@@ -190,7 +190,7 @@ export function OnboardKioskPage() {
                 <div key={rec.id} style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, padding: 10, marginBottom: 6 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>
-                      {k?.serial_number ?? rec.kiosk_id.slice(0, 8)} · {rec.onboarding_type === 'onboarding' ? '入网' : '复查'}
+                      {k?.serial_number ?? rec.kiosk_id.slice(0, 8)} · {rec.onboarding_type}
                     </span>
                     <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: statusBg, color: statusColor }}>
                       {statusLabel}
