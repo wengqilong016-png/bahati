@@ -66,7 +66,7 @@ export function TasksPage() {
   const photoUrl = (raw: string): string => {
     if (raw.startsWith('http')) return raw;
     const { data } = supabase.storage.from('task-photos').getPublicUrl(raw);
-    return data.publicUrl;
+    return data?.publicUrl || raw;
   };
 
   const settled = tasks?.filter(t => t.settlement_status === 'settled') ?? [];

@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 import { DataTable, type Column } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
 import { fmtCurrency } from '../lib/format';
+import { useToast } from '../components/Toast';
 
 interface Reconciliation {
   id: string;
@@ -24,6 +25,7 @@ export function SettlementsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const fetchReconciliations = async () => {
     setLoading(true);
@@ -53,8 +55,10 @@ export function SettlementsPage() {
 
     if (err) {
       setError(err.message);
+      showToast(`确认失败: ${err.message}`, 'error');
     } else {
       setError(null);
+      showToast('日结已确认', 'success');
       void fetchReconciliations();
     }
     setConfirmingId(null);

@@ -41,11 +41,16 @@ export async function settleTask(params: SettleTaskParams): Promise<void> {
   }
 
   // Optimistically update local Dexie record so the UI refreshes instantly
-  await db.tasks.update(taskId, {
-    settlement_status: 'settled',
-    dividend_method: dividendMethod,
-    exchange_amount: exchangeAmount,
-    expense_amount: expenseAmount,
-    expense_note: expenseNote,
-  });
+  try {
+    await db.tasks.update(taskId, {
+      settlement_status: 'settled',
+      dividend_method: dividendMethod,
+      exchange_amount: exchangeAmount,
+      expense_amount: expenseAmount,
+      expense_note: expenseNote,
+    });
+  } catch (dexieErr) {
+    console.error('[settlement] Server settlement succeeded but local DB update failed:', dexieErr);
+    // Don't throw — the settlement IS recorded server-side; next sync will fix local state
+  }
 }

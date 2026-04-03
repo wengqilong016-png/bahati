@@ -99,7 +99,7 @@ export function OnboardingApprovalsPage() {
   const photoUrl = (raw: string): string => {
     if (raw.startsWith('http')) return raw;
     const { data } = supabase.storage.from('onboarding-photos').getPublicUrl(raw);
-    return data.publicUrl;
+    return data?.publicUrl || raw;
   };
 
   const pending = records?.filter(r => r.status === 'pending') ?? [];

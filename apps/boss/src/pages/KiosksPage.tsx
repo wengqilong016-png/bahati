@@ -85,8 +85,9 @@ export function KiosksPage() {
 
   useEffect(() => {
     void fetchKiosks();
-    supabase.from('merchants').select('id, name').order('name').then(({ data }) => {
-      if (data) setMerchantOptions(data as MerchantOption[]);
+    supabase.from('merchants').select('id, name').order('name').then(({ data, error: err }) => {
+      if (err) showToast('加载商家列表失败', 'error');
+      else if (data) setMerchantOptions(data as MerchantOption[]);
     });
   }, []);
 
@@ -101,7 +102,10 @@ export function KiosksPage() {
     setSaving(false);
     if (err) {
       setError(err.message);
+      showToast(`添加失败: ${err.message}`, 'error');
     } else {
+      setError(null);
+      showToast('机器已添加', 'success');
       setShowForm(false);
       setSerial(''); setLocation(''); setMerchantId('');
       void fetchKiosks();
@@ -110,8 +114,13 @@ export function KiosksPage() {
 
   const updateStatus = async (id: string, status: string) => {
     const { error: err } = await supabase.from('kiosks').update({ status }).eq('id', id);
-    if (err) setError(err.message);
-    else void fetchKiosks();
+    if (err) {
+      setError(err.message);
+      showToast(`状态更新失败: ${err.message}`, 'error');
+    } else {
+      showToast('状态已更新', 'success');
+      void fetchKiosks();
+    }
   };
 
   const openEdit = (k: Kiosk) => {

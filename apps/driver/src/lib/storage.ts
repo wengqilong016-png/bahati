@@ -170,6 +170,9 @@ async function uploadFileToBucket(
   }
 
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  if (!data?.publicUrl) {
+    throw new Error(`Failed to generate public URL for ${path}`);
+  }
   return data.publicUrl;
 }
 

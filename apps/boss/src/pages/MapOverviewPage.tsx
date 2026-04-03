@@ -91,8 +91,13 @@ export function MapOverviewPage() {
 
       if (cancelled) return;
 
-      if (kiosksRes.error) setError(kiosksRes.error.message);
-      else setKiosks(kiosksRes.data as Kiosk[]);
+      // Check all query errors
+      const queryErrors = [kiosksRes.error, merchantsRes.error, driversRes.error].filter(Boolean);
+      if (queryErrors.length > 0) {
+        setError(`数据加载失败: ${queryErrors[0]!.message}`);
+      }
+
+      if (!kiosksRes.error) setKiosks(kiosksRes.data as Kiosk[]);
 
       const mMap: Record<string, string> = {};
       for (const m of (merchantsRes.data ?? []) as Merchant[]) {

@@ -380,21 +380,21 @@ export function ReconciliationPage() {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || pendingTasks.length > 0}
             style={{
               width: '100%',
               padding: 14,
-              background: submitting ? '#ccc' : '#0066CC',
+              background: (submitting || pendingTasks.length > 0) ? '#ccc' : '#0066CC',
               color: '#fff',
               border: 'none',
               borderRadius: 8,
               fontSize: 16,
               fontWeight: 600,
-              cursor: submitting ? 'not-allowed' : 'pointer',
-              opacity: submitting ? 0.7 : 1,
+              cursor: (submitting || pendingTasks.length > 0) ? 'not-allowed' : 'pointer',
+              opacity: (submitting || pendingTasks.length > 0) ? 0.7 : 1,
             }}
           >
-            {submitting ? 'Submitting...' : 'Submit Daily Close'}
+            {submitting ? 'Submitting...' : pendingTasks.length > 0 ? `Settle all tasks first (${pendingTasks.length} remaining)` : 'Submit Daily Close'}
           </button>
         </form>
       </div>
