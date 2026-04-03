@@ -256,13 +256,22 @@ async function _pullDriverProfile(): Promise<void> {
 
   if (!data) return;
 
-  const row = Array.isArray(data) ? (data[0] as Record<string, unknown> | undefined) : (data as Record<string, unknown>);
-  if (!row) return;
+  const raw = Array.isArray(data) ? data[0] : data;
+  if (
+    !raw ||
+    typeof raw !== 'object' ||
+    typeof (raw as Record<string, unknown>).coin_balance !== 'number' ||
+    typeof (raw as Record<string, unknown>).cash_balance !== 'number'
+  ) {
+    console.error('[sync] pullDriverProfile: unexpected response shape', raw);
+    return;
+  }
 
+  const row = raw as { coin_balance: number; cash_balance: number };
   await db.driver_profile.put({
     id: 'me',
-    coin_balance: (row.coin_balance as number) ?? 0,
-    cash_balance: (row.cash_balance as number) ?? 0,
+    coin_balance: row.coin_balance,
+    cash_balance: row.cash_balance,
     fetched_at: new Date().toISOString(),
   });
 }

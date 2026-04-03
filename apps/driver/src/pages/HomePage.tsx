@@ -95,13 +95,13 @@ function WalletCard({ coinBalance, cashBalance, fetchedAt }: {
         <div>
           <p style={{ margin: 0, fontSize: 11, opacity: 0.7 }}>硬币余额</p>
           <p style={{ margin: '2px 0 0', fontSize: 20, fontWeight: 700 }}>
-            {hasData ? coinBalance!.toLocaleString() : '—'}
+          {hasData ? coinBalance?.toLocaleString() ?? '—' : '—'}
           </p>
         </div>
         <div>
           <p style={{ margin: 0, fontSize: 11, opacity: 0.7 }}>现金余额</p>
           <p style={{ margin: '2px 0 0', fontSize: 20, fontWeight: 700 }}>
-            {hasData ? fmtTZS(cashBalance!) : '—'}
+          {hasData ? fmtTZS(cashBalance ?? 0) : '—'}
           </p>
         </div>
       </div>
