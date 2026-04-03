@@ -10,7 +10,8 @@ function localizeAuthError(msg: string): string {
   if (/email not confirmed/i.test(msg)) return '邮箱尚未验证，请联系管理员。';
   if (/network|fetch|failed to fetch/i.test(msg)) return '网络连接失败，请检查网络后重试。';
   if (/too many requests/i.test(msg)) return '登录尝试过于频繁，请稍候再试。';
-  return msg;
+  console.error('未匹配的登录错误原文:', msg);
+  return '登录失败，请稍后重试。';
 }
 
 export function LoginPage() {
