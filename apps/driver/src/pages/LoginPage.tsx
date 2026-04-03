@@ -1,16 +1,34 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useConnectionStatus } from '../hooks/useConnectionStatus';
 
+// Map Supabase English error messages (which are always in English regardless of locale)
+// to user-facing Chinese messages.
+function localizeAuthError(msg: string): string {
+  if (/invalid login credentials/i.test(msg)) return '邮箱或密码错误，请重试。';
+  if (/email not confirmed/i.test(msg)) return '邮箱尚未验证，请联系管理员。';
+  if (/network|fetch|failed to fetch/i.test(msg)) return '网络连接失败，请检查网络后重试。';
+  if (/too many requests/i.test(msg)) return '登录尝试过于频繁，请稍候再试。';
+  console.error('未匹配的登录错误原文:', msg);
+  return '登录失败，请稍后重试。';
+}
+
 export function LoginPage() {
-  const { signIn } = useAuth();
+  const { user, loading: authLoading, signIn } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const connStatus = useConnectionStatus();
+
+  // Auto-redirect when a session is already active (e.g. app reopen)
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/home', { replace: true });
+    }
+  }, [authLoading, user, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -19,7 +37,7 @@ export function LoginPage() {
     const { error: err } = await signIn(email, password);
     setLoading(false);
     if (err) {
-      setError(err);
+      setError(localizeAuthError(err));
     } else {
       navigate('/home');
     }

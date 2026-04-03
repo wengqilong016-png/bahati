@@ -25,6 +25,13 @@ export function OnboardKioskPage() {
 
   // Pre-generate a stable ID for this onboarding session's storage path
   const onboardingIdRef = useRef<string>(crypto.randomUUID());
+  // Timer ref for auto-dismissing the success banner — cleaned up on unmount
+  const savedTimerRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current !== undefined) window.clearTimeout(savedTimerRef.current);
+    };
+  }, []);
 
   const initialType: OnboardingType =
     searchParams.get('type') === 'recertification' ? 'recertification' : 'onboarding';
@@ -48,6 +55,12 @@ export function OnboardKioskPage() {
   const isRecert = onboardingType === 'recertification';
   const title = isRecert ? '复查' : '新机入网';
   const submitLabel = isRecert ? '提交复查' : '提交入网';
+
+  // Auto-capture GPS when the page mounts (non-blocking)
+  useEffect(() => {
+    void geo.capture();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Clear mode-specific fields when switching between onboarding and re-certification
   useEffect(() => {
@@ -123,7 +136,22 @@ export function OnboardKioskPage() {
         });
       }
       setSaved(true);
-      setTimeout(() => navigate('/home'), 1200);
+      // Reset form for next entry (stay on page for continuous input)
+      onboardingIdRef.current = crypto.randomUUID();
+      setKioskId('');
+      setSerialNumber('');
+      setMerchantName('');
+      setMerchantContactName('');
+      setMerchantPhone('');
+      setLocationName('');
+      setInitialScore('');
+      setInitialCoinLoan('');
+      setDividendRate('15');
+      setNotes('');
+      setPhotos([]);
+      // Auto-dismiss the success banner; use ref so it can be cleared on unmount
+      if (savedTimerRef.current !== undefined) window.clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = window.setTimeout(() => setSaved(false), 4000);
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存失败');
     } finally {

@@ -6,7 +6,7 @@ import { UpdateBanner } from './components/UpdateBanner';
 import { LoginPage } from './pages/LoginPage';
 
 const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })));
-const KioskListPage = lazy(() => import('./pages/KioskListPage').then(m => ({ default: m.KioskListPage })));
+const WorkPage = lazy(() => import('./pages/WorkPage').then(m => ({ default: m.WorkPage })));
 const DailyTaskPage = lazy(() => import('./pages/DailyTaskPage').then(m => ({ default: m.DailyTaskPage })));
 const ScoreResetPage = lazy(() => import('./pages/ScoreResetPage').then(m => ({ default: m.ScoreResetPage })));
 const OnboardKioskPage = lazy(() => import('./pages/OnboardKioskPage').then(m => ({ default: m.OnboardKioskPage })));
@@ -21,7 +21,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <span style={{ color: '#0066CC', fontSize: 16 }}>Loading...</span>
+        <span style={{ color: '#0066CC', fontSize: 16 }}>加载中...</span>
       </div>
     );
   }
@@ -39,7 +39,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 
 const PageSpinner = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '40vh' }}>
-    <span style={{ color: '#0066CC', fontSize: 16 }}>Loading...</span>
+    <span style={{ color: '#0066CC', fontSize: 16 }}>加载中...</span>
   </div>
 );
 
@@ -58,12 +58,16 @@ export default function App() {
           }
         />
         <Route
-          path="/kiosks"
+          path="/work"
           element={
             <ProtectedLayout>
-              <KioskListPage />
+              <WorkPage />
             </ProtectedLayout>
           }
+        />
+        <Route
+          path="/kiosks"
+          element={<Navigate to="/work" replace />}
         />
         <Route
           path="/kiosks/:kioskId/task"

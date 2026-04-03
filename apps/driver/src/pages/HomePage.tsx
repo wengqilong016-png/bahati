@@ -48,8 +48,8 @@ export function HomePage() {
 
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
-        <StatCard label="我的机器" value={kioskCount} color="#0066CC" onClick={() => navigate('/kiosks')} />
-        <StatCard label="今日任务" value={todayTaskCount} color="#1e7e34" onClick={() => navigate('/kiosks')} />
+        <StatCard label="我的机器" value={kioskCount} color="#0066CC" onClick={() => navigate('/work')} />
+        <StatCard label="今日任务" value={todayTaskCount} color="#1e7e34" onClick={() => navigate('/work')} />
         <StatCard label="待同步" value={pendingSyncCount} color={pendingSyncCount > 0 ? '#e65100' : '#999'} onClick={() => navigate('/sync')} />
         <StatCard label="重置申请" value={pendingResetCount} color="#7b1fa2" />
       </div>
@@ -57,7 +57,7 @@ export function HomePage() {
       {/* Quick actions */}
       <h3 style={{ margin: '0 0 12px', fontSize: 15, color: '#333' }}>快捷操作</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <ActionButton icon="📋" label="记录每日任务" subtitle="选择机器并提交" onClick={() => navigate('/kiosks')} />
+        <ActionButton icon="📋" label="记录每日任务" subtitle="选择机器并提交" onClick={() => navigate('/work')} />
         <ActionButton icon="➕" label="新机入网" subtitle="登记新机器" onClick={() => navigate('/onboard')} />
         <ActionButton icon="🔄" label="复查" subtitle="复查现有机器" onClick={() => navigate('/onboard?type=recertification')} />
         <ActionButton icon="📊" label="今日汇总" subtitle="查看今日工作" onClick={() => navigate('/summary')} />
