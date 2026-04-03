@@ -246,6 +246,51 @@ async function _pullOnboardingRecords(userId: string): Promise<void> {
   }
 }
 
+async function _pullDriverProfile(): Promise<void> {
+  const { data, error } = await supabase.rpc('read_driver_balances');
+
+  if (error) {
+    console.error('[sync] pullDriverProfile error:', error.message);
+    return;
+  }
+
+  if (!data) return;
+  if (Array.isArray(data) && data.length === 0) return;
+
+  const raw = Array.isArray(data) ? data[0] : data;
+  if (!raw || typeof raw !== 'object') {
+    console.error('[sync] pullDriverProfile: unexpected response shape', raw);
+    return;
+  }
+
+  const row = raw as Record<string, unknown>;
+  const rawCoinBalance = row.coin_balance;
+  const rawCashBalance = row.cash_balance;
+
+  if (
+    (typeof rawCoinBalance !== 'string' && typeof rawCoinBalance !== 'number') ||
+    (typeof rawCashBalance !== 'string' && typeof rawCashBalance !== 'number')
+  ) {
+    console.error('[sync] pullDriverProfile: unexpected response shape', raw);
+    return;
+  }
+
+  const coinBalance = Number(rawCoinBalance);
+  const cashBalance = Number(rawCashBalance);
+
+  if (!Number.isFinite(coinBalance) || !Number.isFinite(cashBalance)) {
+    console.error('[sync] pullDriverProfile: unexpected response shape', raw);
+    return;
+  }
+
+  await db.driver_profile.put({
+    id: 'me',
+    coin_balance: coinBalance,
+    cash_balance: cashBalance,
+    fetched_at: new Date().toISOString(),
+  });
+}
+
 // ---- Public API (each fetches its own user for standalone use) ----
 
 /**
@@ -454,6 +499,7 @@ export async function startSync(): Promise<void> {
     await _pullReconciliations(user.id);
     await _pullScoreResetRequests(user.id);
     await _pullOnboardingRecords(user.id);
+    await _pullDriverProfile();
     await retryPendingUploads();
     await processQueue();
   } catch (err) {

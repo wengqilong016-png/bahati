@@ -97,6 +97,18 @@ export interface SyncQueueItem {
 }
 
 /**
+ * Local cache of the driver's wallet balances fetched from
+ * public.read_driver_balances() RPC. Stored as a singleton
+ * in the Dexie driver_profile store with id='me'.
+ */
+export interface LocalDriverProfile {
+  id: 'me';
+  coin_balance: number;
+  cash_balance: number;
+  fetched_at: string; // ISO timestamp of last successful pull
+}
+
+/**
  * Local representation of a daily driver reconciliation
  * (Phase 2: public.daily_driver_reconciliations).
  */
