@@ -10,7 +10,6 @@ const KioskListPage = lazy(() => import('./pages/KioskListPage').then(m => ({ de
 const DailyTaskPage = lazy(() => import('./pages/DailyTaskPage').then(m => ({ default: m.DailyTaskPage })));
 const ScoreResetPage = lazy(() => import('./pages/ScoreResetPage').then(m => ({ default: m.ScoreResetPage })));
 const OnboardKioskPage = lazy(() => import('./pages/OnboardKioskPage').then(m => ({ default: m.OnboardKioskPage })));
-const SummaryPage = lazy(() => import('./pages/SummaryPage').then(m => ({ default: m.SummaryPage })));
 const PendingSyncPage = lazy(() => import('./pages/PendingSyncPage').then(m => ({ default: m.PendingSyncPage })));
 const SettlementPage = lazy(() => import('./pages/SettlementPage').then(m => ({ default: m.SettlementPage })));
 const ReconciliationPage = lazy(() => import('./pages/ReconciliationPage').then(m => ({ default: m.ReconciliationPage })));
@@ -86,14 +85,6 @@ export default function App() {
           element={
             <ProtectedLayout>
               <OnboardKioskPage />
-            </ProtectedLayout>
-          }
-        />
-        <Route
-          path="/summary"
-          element={
-            <ProtectedLayout>
-              <SummaryPage />
             </ProtectedLayout>
           }
         />

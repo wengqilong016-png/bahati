@@ -49,6 +49,34 @@ export async function saveDailyTask(input: SaveDailyTaskInput): Promise<void> {
   const id = input.id ?? existingTask?.id ?? crypto.randomUUID();
   const now = new Date().toISOString();
 
+  // Try direct server submit first when online — ensures the task exists on the
+  // server before the driver attempts settlement (which requires server-side task).
+  let serverSynced = false;
+  if (navigator.onLine) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const serverPayload = {
+          id,
+          kiosk_id: input.kioskId,
+          task_date: taskDate,
+          current_score: input.currentScore,
+          photo_urls: input.photoUrls,
+          notes: input.notes,
+          driver_id: user.id,
+          latitude: input.latitude ?? null,
+          longitude: input.longitude ?? null,
+        };
+        const { error } = existingTask
+          ? await supabase.from('tasks').update(serverPayload).eq('id', id)
+          : await supabase.from('tasks').insert(serverPayload);
+        if (!error || error.code === '23505') serverSynced = true;
+      }
+    } catch {
+      // Network error — fall through to offline queue
+    }
+  }
+
   await db.transaction('rw', [db.tasks, db.sync_queue, db.kiosks], async () => {
     await db.tasks.put({
       id,
@@ -57,28 +85,30 @@ export async function saveDailyTask(input: SaveDailyTaskInput): Promise<void> {
       current_score: input.currentScore,
       photo_urls: input.photoUrls,
       notes: input.notes,
-      sync_status: 'pending',
+      sync_status: serverSynced ? 'synced' : 'pending',
       created_at: existingTask?.created_at ?? now,
     });
 
-    await db.sync_queue.add({
-      table_name: 'tasks',
-      record_id: id,
-      operation: existingTask ? 'update' : 'insert',
-      payload: JSON.stringify({
-        id,
-        kiosk_id: input.kioskId,
-        task_date: taskDate,
-        current_score: input.currentScore,
-        photo_urls: input.photoUrls,
-        notes: input.notes,
-        latitude: input.latitude ?? null,
-        longitude: input.longitude ?? null,
-      }),
-      retry_count: 0,
-      last_error: null,
-      created_at: now,
-    });
+    if (!serverSynced) {
+      await db.sync_queue.add({
+        table_name: 'tasks',
+        record_id: id,
+        operation: existingTask ? 'update' : 'insert',
+        payload: JSON.stringify({
+          id,
+          kiosk_id: input.kioskId,
+          task_date: taskDate,
+          current_score: input.currentScore,
+          photo_urls: input.photoUrls,
+          notes: input.notes,
+          latitude: input.latitude ?? null,
+          longitude: input.longitude ?? null,
+        }),
+        retry_count: 0,
+        last_error: null,
+        created_at: now,
+      });
+    }
 
     // Update local kiosk score so subsequent tasks see the new baseline
     await db.kiosks.update(input.kioskId, {

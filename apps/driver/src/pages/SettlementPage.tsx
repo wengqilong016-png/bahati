@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../lib/db';
 import { settleTask } from '../lib/settlement';
-import { pullTasks } from '../lib/sync';
+import { startSync } from '../lib/sync';
 import { supabase } from '../lib/supabase';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import type { LocalTask, LocalKiosk } from '../lib/types';
@@ -437,10 +437,11 @@ export function SettlementPage() {
   const handleRefresh = async () => {
     setSyncing(true);
     try {
-      await pullTasks();
+      await startSync();
     } finally {
       setSyncing(false);
       setRefreshKey(k => k + 1);
+      balanceState.refresh();
     }
   };
 
