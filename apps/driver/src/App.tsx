@@ -114,6 +114,14 @@ export default function App() {
           }
         />
         <Route
+          path="/settlement/:taskId"
+          element={
+            <ProtectedLayout>
+              <SettlementPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
           path="/reconciliation"
           element={
             <ProtectedLayout>

@@ -47,6 +47,13 @@ const NavIcons: Record<string, React.FC<{ size?: number; color?: string }>> = {
       <polyline points="20 6 9 17 4 12" />
     </svg>
   ),
+  tasks: ({ size = 18, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+      <rect x="9" y="3" width="6" height="4" rx="1" />
+      <path d="M9 14l2 2 4-4" />
+    </svg>
+  ),
   reports: ({ size = 18, color = 'currentColor' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" />
@@ -86,6 +93,7 @@ const navItems = [
   { to: '/drivers', label: '司机管理', iconKey: 'drivers' },
   { to: '/merchants', label: '商家管理', iconKey: 'merchants' },
   { to: '/kiosks', label: '机器管理', iconKey: 'kiosks' },
+  { to: '/tasks', label: '每日任务', iconKey: 'tasks' },
   { to: '/approvals', label: '审批中心', iconKey: 'approvals' },
   { to: '/reports', label: '报表中心', iconKey: 'reports' },
   { to: '/map', label: '地图概览', iconKey: 'map' },

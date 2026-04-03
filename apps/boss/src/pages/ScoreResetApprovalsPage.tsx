@@ -95,9 +95,7 @@ export function ScoreResetApprovalsPage() {
   };
 
   return (
-    <div style={{ padding: 24, maxWidth: 800 }}>
-      <h2 style={{ margin: '0 0 20px', color: colors.primary, fontSize: font.sizes.xxl }}>审批中心</h2>
-
+    <>
       {error && (
         <div style={{ background: colors.dangerLight, color: colors.danger, padding: 12, borderRadius: radius.md, marginBottom: 16 }}>
           {error}
@@ -278,7 +276,7 @@ export function ScoreResetApprovalsPage() {
           </div>
         );
       })}
-    </div>
+    </>
   );
 }
 

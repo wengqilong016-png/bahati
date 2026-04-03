@@ -9,10 +9,11 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ de
 const DriversPage = lazy(() => import('./pages/DriversPage').then(m => ({ default: m.DriversPage })));
 const MerchantsPage = lazy(() => import('./pages/MerchantsPage').then(m => ({ default: m.MerchantsPage })));
 const KiosksPage = lazy(() => import('./pages/KiosksPage').then(m => ({ default: m.KiosksPage })));
-const ScoreResetApprovalsPage = lazy(() => import('./pages/ScoreResetApprovalsPage').then(m => ({ default: m.ScoreResetApprovalsPage })));
+const ApprovalsHubPage = lazy(() => import('./pages/ApprovalsHubPage').then(m => ({ default: m.ApprovalsHubPage })));
 const ReportsPage = lazy(() => import('./pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
 const MapOverviewPage = lazy(() => import('./pages/MapOverviewPage').then(m => ({ default: m.MapOverviewPage })));
 const SettlementsPage = lazy(() => import('./pages/SettlementsPage').then(m => ({ default: m.SettlementsPage })));
+const TasksPage = lazy(() => import('./pages/TasksPage').then(m => ({ default: m.TasksPage })));
 const DriverLedgerPage = lazy(() => import('./pages/DriverLedgerPage').then(m => ({ default: m.DriverLedgerPage })));
 const MerchantLedgerPage = lazy(() => import('./pages/MerchantLedgerPage').then(m => ({ default: m.MerchantLedgerPage })));
 
@@ -71,7 +72,8 @@ export default function App() {
           <Route path="/drivers" element={<ProtectedLayout><AnimatedPage><DriversPage /></AnimatedPage></ProtectedLayout>} />
           <Route path="/merchants" element={<ProtectedLayout><AnimatedPage><MerchantsPage /></AnimatedPage></ProtectedLayout>} />
           <Route path="/kiosks" element={<ProtectedLayout><AnimatedPage><KiosksPage /></AnimatedPage></ProtectedLayout>} />
-          <Route path="/approvals" element={<ProtectedLayout><AnimatedPage><ScoreResetApprovalsPage /></AnimatedPage></ProtectedLayout>} />
+          <Route path="/approvals" element={<ProtectedLayout><AnimatedPage><ApprovalsHubPage /></AnimatedPage></ProtectedLayout>} />
+          <Route path="/tasks" element={<ProtectedLayout><AnimatedPage><TasksPage /></AnimatedPage></ProtectedLayout>} />
           <Route path="/reports" element={<ProtectedLayout><AnimatedPage><ReportsPage /></AnimatedPage></ProtectedLayout>} />
           <Route path="/map" element={<ProtectedLayout><AnimatedPage><MapOverviewPage /></AnimatedPage></ProtectedLayout>} />
           <Route path="/settlements" element={<ProtectedLayout><AnimatedPage><SettlementsPage /></AnimatedPage></ProtectedLayout>} />
