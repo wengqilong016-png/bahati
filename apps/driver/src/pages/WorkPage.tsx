@@ -364,10 +364,33 @@ export function WorkPage() {
     [today],
   );
 
-  const taskByKiosk = useMemo(
-    () => new Map<string, LocalTask>((todayTasks ?? []).map(t => [t.kiosk_id, t])),
-    [todayTasks],
+  const kioskIdSet = useMemo(
+    () => new Set((kiosks ?? []).map(k => k.id)),
+    [kiosks],
   );
+
+  const taskByKiosk = useMemo(() => {
+    const map = new Map<string, LocalTask>();
+    (todayTasks ?? []).forEach((t) => {
+      if (kioskIdSet.has(t.kiosk_id)) {
+        map.set(t.kiosk_id, t);
+      }
+    });
+    return map;
+  }, [todayTasks, kioskIdSet]);
+
+  const submittedTaskByKiosk = useMemo(() => {
+    const map = new Map<string, LocalTask>();
+    (todayTasks ?? []).forEach((t) => {
+      if (
+        kioskIdSet.has(t.kiosk_id) &&
+        (t.sync_status === 'pending' || t.sync_status === 'synced')
+      ) {
+        map.set(t.kiosk_id, t);
+      }
+    });
+    return map;
+  }, [todayTasks, kioskIdSet]);
 
   const [expandedKioskId, setExpandedKioskId] = useState<string | null>(null);
   const [pendingByKiosk, setPendingByKiosk] = useState<Record<string, number>>({});
@@ -387,9 +410,9 @@ export function WorkPage() {
     });
   }, []);
 
-  const doneCount = (todayTasks ?? []).length;
+  const doneCount = submittedTaskByKiosk.size;
   const totalCount = kiosks?.length ?? 0;
-  const pendingCount = totalCount - doneCount;
+  const pendingCount = Math.max(totalCount - doneCount, 0);
 
   const filteredKiosks = useMemo(() => {
     if (!kiosks) return [];
@@ -399,14 +422,14 @@ export function WorkPage() {
         kiosk.merchant_name.toLowerCase().includes(lower) ||
         kiosk.serial_number.toLowerCase().includes(lower) ||
         (kiosk.location_name ?? '').toLowerCase().includes(lower);
-      const isDone = taskByKiosk.has(kiosk.id);
+      const isDone = submittedTaskByKiosk.has(kiosk.id);
       const matchFilter =
         statusFilter === 'all' ||
         (statusFilter === 'done' && isDone) ||
         (statusFilter === 'pending' && !isDone);
       return matchSearch && matchFilter;
     });
-  }, [kiosks, searchQuery, statusFilter, taskByKiosk]);
+  }, [kiosks, searchQuery, statusFilter, submittedTaskByKiosk]);
 
   return (
     <div style={{ minHeight: '100vh', background: '#f3f5f8', paddingBottom: 80 }}>
