@@ -75,6 +75,16 @@ function KioskTaskCard({ kiosk, todayTask, isExpanded, onToggle }: KioskTaskCard
     e.preventDefault();
     if (!user || !kiosk) return;
     setError(null);
+
+    if (scoreError) {
+      setError(scoreError);
+      return;
+    }
+
+    if (pendingUploads > 0) {
+      setError('照片仍在上传中，请等待上传完成后再提交');
+      return;
+    }
     setSaving(true);
 
     // Use cached GPS — already capturing since card was opened
