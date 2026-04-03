@@ -33,12 +33,11 @@ export function OnboardKioskPage() {
   const [merchantName, setMerchantName] = useState('');
   const [merchantContactName, setMerchantContactName] = useState('');
   const [merchantPhone, setMerchantPhone] = useState('');
-  const [merchantAddress, setMerchantAddress] = useState('');
   const [locationName, setLocationName] = useState('');
-  const [initialScore, setInitialScore] = useState('0');
-  const [initialCoinLoan, setInitialCoinLoan] = useState('0');
+  const [initialScore, setInitialScore] = useState('');
+  const [initialCoinLoan, setInitialCoinLoan] = useState('');
   const [notes, setNotes] = useState('');
-  const [dividendRate, setDividendRate] = useState('30');
+  const [dividendRate, setDividendRate] = useState('15');
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -55,11 +54,10 @@ export function OnboardKioskPage() {
       setMerchantName('');
       setMerchantContactName('');
       setMerchantPhone('');
-      setMerchantAddress('');
       setLocationName('');
-      setInitialScore('0');
-      setInitialCoinLoan('0');
-      setDividendRate('30');
+      setInitialScore('');
+      setInitialCoinLoan('');
+      setDividendRate('15');
     } else {
       setKioskId('');
       setSerialNumber('');
@@ -105,12 +103,12 @@ export function OnboardKioskPage() {
           merchantName,
           merchantContactName,
           merchantPhone,
-          merchantAddress,
+          merchantAddress: locationName,
           kioskSerialNumber: serialNumber,
           kioskLocationName: locationName,
           initialScore: Number.isNaN(parsedInitialScore) ? 0 : parsedInitialScore,
           initialCoinLoan: Number.isNaN(parsedInitialCoinLoan) ? 0 : parsedInitialCoinLoan,
-          dividendRate: Number.isNaN(parsedDividendRate) ? 0.30 : parsedDividendRate,
+          dividendRate: Number.isNaN(parsedDividendRate) ? 0.15 : parsedDividendRate,
           photoUrls: photos,
           notes: notes.trim(),
         });
@@ -236,7 +234,7 @@ export function OnboardKioskPage() {
                 value={merchantName}
                 onChange={e => setMerchantName(e.target.value)}
                 required
-                placeholder="e.g. Bahati Store"
+                placeholder="Bahati Store"
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
               />
             </div>
@@ -249,7 +247,7 @@ export function OnboardKioskPage() {
                 type="text"
                 value={merchantContactName}
                 onChange={e => setMerchantContactName(e.target.value)}
-                placeholder="e.g. John Doe"
+                placeholder="John Doe"
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
               />
             </div>
@@ -262,34 +260,21 @@ export function OnboardKioskPage() {
                 type="tel"
                 value={merchantPhone}
                 onChange={e => setMerchantPhone(e.target.value)}
-                placeholder="e.g. +255700000000"
+                placeholder="+255700000000"
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-                Merchant Address
-              </label>
-              <input
-                type="text"
-                value={merchantAddress}
-                onChange={e => setMerchantAddress(e.target.value)}
-                placeholder="e.g. Samora Avenue, Dar es Salaam"
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-                Kiosk Location Name *
+                Kiosk Location *
               </label>
               <input
                 type="text"
                 value={locationName}
                 onChange={e => setLocationName(e.target.value)}
                 required
-                placeholder="e.g. Front Door"
+                placeholder="Samora Avenue, Dar es Salaam"
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
               />
             </div>
@@ -307,14 +292,9 @@ export function OnboardKioskPage() {
               value={serialNumber}
               onChange={e => setSerialNumber(e.target.value)}
               required
-              placeholder="e.g. SK-2024-001"
+              placeholder="SK-2024-001"
               style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
             />
-            {!isRecert && (
-              <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888' }}>
-                Enter the serial number printed on the new machine.
-              </p>
-            )}
           </div>
         )}
 
@@ -328,20 +308,18 @@ export function OnboardKioskPage() {
               type="number"
               value={dividendRate}
               onChange={e => setDividendRate(e.target.value)}
+              onFocus={e => e.target.select()}
               required
               min={0}
               max={100}
               step="0.1"
-              placeholder="30"
+              placeholder="15"
               style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
             />
-            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888' }}>
-              Merchant's share of revenue, e.g. 30 means 30%.
-            </p>
           </div>
         )}
 
-        {/* Initial score — for new onboarding only */}
+        {/* Initial coin loan — for new onboarding only */}
         {!isRecert && (
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
@@ -351,14 +329,12 @@ export function OnboardKioskPage() {
               type="number"
               value={initialCoinLoan}
               onChange={e => setInitialCoinLoan(e.target.value)}
+              onFocus={e => e.target.select()}
               min={0}
               step="0.01"
               placeholder="0"
               style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
             />
-            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888' }}>
-              Optional. If greater than 0, an initial debt ledger entry will be created.
-            </p>
           </div>
         )}
 
@@ -371,14 +347,12 @@ export function OnboardKioskPage() {
               type="number"
               value={initialScore}
               onChange={e => setInitialScore(e.target.value)}
+              onFocus={e => e.target.select()}
               required
               min={0}
               placeholder="0"
               style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
             />
-            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888' }}>
-              Enter the current score reading shown on the machine display.
-            </p>
           </div>
         )}
 

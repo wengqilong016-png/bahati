@@ -75,13 +75,27 @@ ALTER TABLE public.merchant_balance_snapshots   REPLICA IDENTITY FULL;
 --     present by default.
 -- ────────────────────────────────────────────────────────────
 
-ALTER PUBLICATION supabase_realtime ADD TABLE public.drivers;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.kiosks;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.tasks;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.score_reset_requests;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.kiosk_onboarding_records;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.daily_driver_reconciliations;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.task_settlements;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.driver_fund_ledger;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.merchant_ledger;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.merchant_balance_snapshots;
+DO $$
+DECLARE
+  t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'public.drivers',
+    'public.kiosks',
+    'public.tasks',
+    'public.score_reset_requests',
+    'public.kiosk_onboarding_records',
+    'public.daily_driver_reconciliations',
+    'public.task_settlements',
+    'public.driver_fund_ledger',
+    'public.merchant_ledger',
+    'public.merchant_balance_snapshots'
+  ] LOOP
+    BEGIN
+      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE %s', t);
+    EXCEPTION WHEN duplicate_object THEN
+      NULL; -- already a member, skip
+    END;
+  END LOOP;
+END
+$$;
