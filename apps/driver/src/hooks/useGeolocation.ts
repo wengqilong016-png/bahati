@@ -14,6 +14,17 @@ interface UseGeolocationReturn {
   capture: () => Promise<GeoCoords | null>;
 }
 
+// ---- GPS error Chinese localization ----
+
+function localizeGeoError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/timeout|timed out/i.test(msg)) return '定位超时，请检查GPS是否开启';
+  if (/permission|denied|not granted/i.test(msg)) return '未授权定位权限';
+  if (/unavailable|position unavailable/i.test(msg)) return '无法获取位置，请检查GPS信号';
+  console.error('[geo] GPS error:', msg);
+  return '定位失败，请检查GPS是否开启';
+}
+
 /**
  * Hook to capture GPS coordinates via Capacitor Geolocation.
  * Works on Android (native) and falls back to browser Geolocation API on web.
@@ -53,8 +64,7 @@ export function useGeolocation(): UseGeolocationReturn {
       setLoading(false);
       return result;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '定位失败，请检查GPS是否开启';
-      setError(msg);
+      setError(localizeGeoError(err));
       setLoading(false);
       return null;
     }

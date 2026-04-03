@@ -38,9 +38,11 @@ interface KioskTaskCardProps {
   todayTask: LocalTask | undefined;
   isExpanded: boolean;
   onToggle: () => void;
+  /** Called whenever the card's in-progress upload count changes. */
+  onPendingChange?: (count: number) => void;
 }
 
-function KioskTaskCard({ kiosk, todayTask, isExpanded, onToggle }: KioskTaskCardProps) {
+function KioskTaskCard({ kiosk, todayTask, isExpanded, onToggle, onPendingChange }: KioskTaskCardProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const geo = useGeolocation();
@@ -64,6 +66,13 @@ function KioskTaskCard({ kiosk, todayTask, isExpanded, onToggle }: KioskTaskCard
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExpanded]);
+
+  // Bubble pending upload count to parent (WorkPage) so it can guard page-level navigation
+  const onPendingChangeRef = useRef(onPendingChange);
+  onPendingChangeRef.current = onPendingChange;
+  useEffect(() => {
+    onPendingChangeRef.current?.(pendingUploads);
+  }, [pendingUploads]);
 
   const uploadFn = useCallback((file: File) => uploadTaskPhoto(file, taskId), [taskId]);
 
@@ -326,10 +335,19 @@ export function WorkPage() {
   );
 
   const [expandedKioskId, setExpandedKioskId] = useState<string | null>(null);
+  const [pendingByKiosk, setPendingByKiosk] = useState<Record<string, number>>({});
+  const totalPending = Object.values(pendingByKiosk).reduce((a, b) => a + b, 0);
 
   const toggleKiosk = (id: string) => {
     setExpandedKioskId(prev => (prev === id ? null : id));
   };
+
+  const handleKioskPendingChange = useCallback((kioskId: string, count: number) => {
+    setPendingByKiosk(prev => {
+      if (prev[kioskId] === count) return prev;
+      return { ...prev, [kioskId]: count };
+    });
+  }, []);
 
   const doneCount = (todayTasks ?? []).length;
   const totalCount = kiosks?.length ?? 0;
@@ -387,6 +405,7 @@ export function WorkPage() {
           todayTask={taskByKiosk.get(kiosk.id)}
           isExpanded={expandedKioskId === kiosk.id}
           onToggle={() => toggleKiosk(kiosk.id)}
+          onPendingChange={(count) => handleKioskPendingChange(kiosk.id, count)}
         />
       ))}
 
@@ -394,10 +413,16 @@ export function WorkPage() {
       {doneCount > 0 && (
         <button
           type="button"
+          disabled={totalPending > 0}
           onClick={() => navigate('/settlement')}
-          style={{ width: '100%', marginTop: 8, padding: 14, background: '#0066CC', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
+          style={{
+            width: '100%', marginTop: 8, padding: 14,
+            background: totalPending > 0 ? '#ccc' : '#0066CC',
+            color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 600,
+            cursor: totalPending > 0 ? 'not-allowed' : 'pointer',
+          }}
         >
-          💰 查看结算明细
+          {totalPending > 0 ? `📤 照片上传中(${totalPending})，请等待…` : '💰 查看结算明细'}
         </button>
       )}
     </div>
