@@ -93,4 +93,56 @@ describe('computeSettlement', () => {
     });
     expect(r2.dividendAmount).toBe(50);
   });
+
+  it('zero dividendRate produces zero dividend', () => {
+    const r = computeSettlement({ ...base, dividendRate: 0 });
+    expect(r.dividendAmount).toBe(0);
+    // Cash balance unchanged when no dividend is taken
+    expect(r.afterDividendCash).toBe(base.openingCashBalance);
+  });
+
+  it('grossRevenueOverride of 0 overrides score-based calculation', () => {
+    // Score delta would normally be (1050-1000)*200 = 10000, but override wins
+    const r = computeSettlement({ ...base, grossRevenueOverride: 0 });
+    expect(r.grossRevenue).toBe(0);
+    expect(r.dividendAmount).toBe(0);
+    expect(r.afterCollectCoin).toBe(base.openingCoinBalance);
+  });
+
+  it('retained dividend method does not alter coin balance', () => {
+    const r = computeSettlement({ ...base, dividendMethod: 'retained' });
+    // Coin balance should not be affected by dividend when retained
+    expect(r.afterDividendCoin).toBe(r.afterCollectCoin);
+  });
+
+  it('large score delta computes proportionally', () => {
+    const r = computeSettlement({ ...base, scoreBefore: 0, scoreCurrent: 10000 });
+    expect(r.grossRevenue).toBe(10000 * 200);
+  });
+
+  it('exchange reduces coin and increases cash symmetrically', () => {
+    const r = computeSettlement({ ...base, exchangeAmount: 2000 });
+    expect(r.afterExchangeCoin).toBe(r.afterDividendCoin - 2000);
+    expect(r.afterExchangeCash).toBe(r.afterDividendCash + 2000);
+  });
+
+  it('expense amount only affects finalCash, not finalCoin', () => {
+    const r = computeSettlement({ ...base, expenseAmount: 300 });
+    expect(r.finalCoin).toBe(r.afterExchangeCoin);
+    expect(r.finalCash).toBe(r.afterExchangeCash - 300);
+  });
+
+  it('opening balances of zero produce correct final values', () => {
+    const r = computeSettlement({
+      ...base,
+      openingCoinBalance: 0,
+      openingCashBalance: 0,
+      dividendMethod: 'cash',
+      exchangeAmount: 0,
+      expenseAmount: 0,
+    });
+    // gross = 10000, dividend = 1500
+    expect(r.finalCoin).toBe(10_000);
+    expect(r.finalCash).toBe(-1_500); // cash dividend taken from zero balance
+  });
 });
