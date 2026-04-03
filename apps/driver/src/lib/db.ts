@@ -5,6 +5,7 @@ import type {
   LocalScoreResetRequest,
   LocalKioskOnboarding,
   LocalReconciliation,
+  LocalDriverProfile,
   SyncQueueItem,
 } from './types';
 
@@ -14,6 +15,7 @@ export type {
   LocalScoreResetRequest,
   LocalKioskOnboarding,
   LocalReconciliation,
+  LocalDriverProfile,
   SyncQueueItem,
 };
 
@@ -24,6 +26,7 @@ export class SmartKioskDB extends Dexie {
   kiosk_onboarding_records!: Table<LocalKioskOnboarding>;
   sync_queue!: Table<SyncQueueItem>;
   reconciliations!: Table<LocalReconciliation>;
+  driver_profile!: Table<LocalDriverProfile>;
 
   constructor() {
     super('SmartKioskDB');
@@ -83,6 +86,18 @@ export class SmartKioskDB extends Dexie {
       kiosk_onboarding_records: 'id, kiosk_id, onboarding_type, sync_status',
       sync_queue: '++id, table_name, record_id, operation, retry_count',
       reconciliations: 'id, driver_id, reconciliation_date, status',
+    });
+
+    // Version 8 — adds driver_profile store for offline wallet balance cache.
+    // Singleton row with id='me'; updated on each successful sync.
+    this.version(8).stores({
+      kiosks: 'id, serial_number, status',
+      tasks: 'id, kiosk_id, task_date, sync_status, settlement_status, [kiosk_id+task_date]',
+      score_reset_requests: 'id, kiosk_id, sync_status',
+      kiosk_onboarding_records: 'id, kiosk_id, onboarding_type, sync_status',
+      sync_queue: '++id, table_name, record_id, operation, retry_count',
+      reconciliations: 'id, driver_id, reconciliation_date, status',
+      driver_profile: 'id',
     });
   }
 }

@@ -246,6 +246,27 @@ async function _pullOnboardingRecords(userId: string): Promise<void> {
   }
 }
 
+async function _pullDriverProfile(): Promise<void> {
+  const { data, error } = await supabase.rpc('read_driver_balances');
+
+  if (error) {
+    console.error('[sync] pullDriverProfile error:', error.message);
+    return;
+  }
+
+  if (!data) return;
+
+  const row = Array.isArray(data) ? (data[0] as Record<string, unknown> | undefined) : (data as Record<string, unknown>);
+  if (!row) return;
+
+  await db.driver_profile.put({
+    id: 'me',
+    coin_balance: (row.coin_balance as number) ?? 0,
+    cash_balance: (row.cash_balance as number) ?? 0,
+    fetched_at: new Date().toISOString(),
+  });
+}
+
 // ---- Public API (each fetches its own user for standalone use) ----
 
 /**
@@ -454,6 +475,7 @@ export async function startSync(): Promise<void> {
     await _pullReconciliations(user.id);
     await _pullScoreResetRequests(user.id);
     await _pullOnboardingRecords(user.id);
+    await _pullDriverProfile();
     await retryPendingUploads();
     await processQueue();
   } catch (err) {

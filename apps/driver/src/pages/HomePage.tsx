@@ -4,6 +4,10 @@ import { db } from '../lib/db';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { getTodayDarEsSalaam } from '../lib/utils';
 
+function fmtTZS(n: number): string {
+  return `TZS ${n.toLocaleString()}`;
+}
+
 export function HomePage() {
   const navigate = useNavigate();
   const isOnline = useOnlineStatus();
@@ -14,6 +18,7 @@ export function HomePage() {
   const pendingSyncCount = useLiveQuery(() => db.sync_queue.where('retry_count').below(3).count(), []) ?? 0;
   const pendingResetCount = useLiveQuery(() =>
     db.score_reset_requests.where('sync_status').anyOf(['pending', 'syncing']).count(), []) ?? 0;
+  const driverProfile = useLiveQuery(() => db.driver_profile.get('me'), []);
 
   return (
     <div style={{ padding: '16px 16px 80px' }}>
@@ -34,6 +39,13 @@ export function HomePage() {
         </span>
       </div>
 
+      {/* Wallet card */}
+      <WalletCard
+        coinBalance={driverProfile?.coin_balance ?? null}
+        cashBalance={driverProfile?.cash_balance ?? null}
+        fetchedAt={driverProfile?.fetched_at ?? null}
+      />
+
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
         <StatCard label="我的机器" value={kioskCount} color="#0066CC" onClick={() => navigate('/kiosks')} />
@@ -50,6 +62,52 @@ export function HomePage() {
         <ActionButton icon="🔄" label="复查" subtitle="复查现有机器" onClick={() => navigate('/onboard?type=recertification')} />
         <ActionButton icon="📊" label="今日汇总" subtitle="查看今日工作" onClick={() => navigate('/summary')} />
       </div>
+    </div>
+  );
+}
+
+function WalletCard({ coinBalance, cashBalance, fetchedAt }: {
+  coinBalance: number | null;
+  cashBalance: number | null;
+  fetchedAt: string | null;
+}) {
+  const hasData = coinBalance !== null && cashBalance !== null;
+  const timeLabel = fetchedAt
+    ? new Intl.DateTimeFormat('zh-CN', {
+        timeZone: 'Africa/Dar_es_Salaam',
+        month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit',
+      }).format(new Date(fetchedAt))
+    : null;
+
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg, #0066CC 0%, #004499 100%)',
+      borderRadius: 12,
+      padding: '16px 18px',
+      marginBottom: 16,
+      color: '#fff',
+    }}>
+      <p style={{ margin: '0 0 10px', fontSize: 12, opacity: 0.8 }}>
+        我的钱包{timeLabel ? `　${timeLabel} 更新` : ''}
+      </p>
+      <div style={{ display: 'flex', gap: 24 }}>
+        <div>
+          <p style={{ margin: 0, fontSize: 11, opacity: 0.7 }}>硬币余额</p>
+          <p style={{ margin: '2px 0 0', fontSize: 20, fontWeight: 700 }}>
+            {hasData ? coinBalance!.toLocaleString() : '—'}
+          </p>
+        </div>
+        <div>
+          <p style={{ margin: 0, fontSize: 11, opacity: 0.7 }}>现金余额</p>
+          <p style={{ margin: '2px 0 0', fontSize: 20, fontWeight: 700 }}>
+            {hasData ? fmtTZS(cashBalance!) : '—'}
+          </p>
+        </div>
+      </div>
+      {!hasData && (
+        <p style={{ margin: '8px 0 0', fontSize: 11, opacity: 0.6 }}>同步后显示余额</p>
+      )}
     </div>
   );
 }
