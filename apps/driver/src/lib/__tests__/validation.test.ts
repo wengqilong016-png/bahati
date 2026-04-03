@@ -34,6 +34,28 @@ describe('validateDailyTaskScore', () => {
     const result = validateDailyTaskScore(400, 400);
     expect(result).toContain('400');
   });
+
+  it('rejects score equal to zero when last recorded is also zero', () => {
+    expect(validateDailyTaskScore(0, 0)).not.toBeNull();
+  });
+
+  it('accepts score of 1 when last recorded is 0', () => {
+    expect(validateDailyTaskScore(1, 0)).toBeNull();
+  });
+
+  it('rejects negative Infinity', () => {
+    expect(validateDailyTaskScore(-Infinity, 400)).not.toBeNull();
+  });
+
+  it('returns Chinese error text for invalid score', () => {
+    const result = validateDailyTaskScore(-1, 0);
+    expect(result).toContain('分数');
+  });
+
+  it('returns Chinese error text for score not exceeding last recorded', () => {
+    const result = validateDailyTaskScore(100, 200);
+    expect(result).toContain('分数');
+  });
 });
 
 describe('validateScoreResetRequest', () => {
@@ -64,5 +86,27 @@ describe('validateScoreResetRequest', () => {
   it('includes current score in error message', () => {
     const result = validateScoreResetRequest(500, 400);
     expect(result).toContain('400');
+  });
+
+  it('rejects Infinity', () => {
+    expect(validateScoreResetRequest(Infinity, 400)).not.toBeNull();
+  });
+
+  it('rejects negative Infinity', () => {
+    expect(validateScoreResetRequest(-Infinity, 400)).not.toBeNull();
+  });
+
+  it('accepts score of 0 when current is 1', () => {
+    expect(validateScoreResetRequest(0, 1)).toBeNull();
+  });
+
+  it('returns Chinese error text for invalid requested score', () => {
+    const result = validateScoreResetRequest(-5, 400);
+    expect(result).toContain('分数');
+  });
+
+  it('returns Chinese error text when requested score is not lower than current', () => {
+    const result = validateScoreResetRequest(400, 400);
+    expect(result).toContain('分数');
   });
 });
