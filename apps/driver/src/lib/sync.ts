@@ -255,6 +255,7 @@ async function _pullDriverProfile(): Promise<void> {
   }
 
   if (!data) return;
+  if (Array.isArray(data) && data.length === 0) return;
 
   const raw = Array.isArray(data) ? data[0] : data;
   if (!raw || typeof raw !== 'object') {
