@@ -72,6 +72,8 @@ export async function saveDailyTask(input: SaveDailyTaskInput): Promise<void> {
         current_score: input.currentScore,
         photo_urls: input.photoUrls,
         notes: input.notes,
+        latitude: input.latitude ?? null,
+        longitude: input.longitude ?? null,
       }),
       retry_count: 0,
       last_error: null,
@@ -177,6 +179,8 @@ export async function saveOnboarding(input: SaveOnboardingInput): Promise<void> 
         onboarding_type: input.onboardingType,
         photo_urls: input.photoUrls,
         notes: input.notes,
+        latitude: input.latitude ?? null,
+        longitude: input.longitude ?? null,
       }),
       retry_count: 0,
       last_error: null,
@@ -249,6 +253,8 @@ export async function createKioskOnboarding(input: CreateKioskOnboardingInput): 
     p_photo_urls: input.photoUrls,
     p_notes: input.notes.trim() || null,
     p_dividend_rate: input.dividendRate ?? null,
+    p_latitude: input.latitude ?? null,
+    p_longitude: input.longitude ?? null,
   });
 
   if (error) {
