@@ -345,7 +345,10 @@ export async function processQueue(): Promise<void> {
           const result = await supabase
             .from(item.table_name)
             .insert({ ...payload, driver_id: user.id });
-          error = result.error;
+          if (result.error) {
+            // Duplicate key means a previous attempt already succeeded — treat as success
+            error = result.error.code === '23505' ? null : result.error;
+          }
         } else if (item.operation === 'update') {
           const result = await supabase
             .from(item.table_name)

@@ -11,20 +11,20 @@ export function PendingSyncPage() {
   return (
     <div style={{ padding: '16px 16px 80px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2 style={{ margin: 0, color: '#0066CC' }}>Sync Status</h2>
+        <h2 style={{ margin: 0, color: '#0066CC' }}>同步状态</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{
             width: 10, height: 10, borderRadius: '50%',
             background: isOnline ? '#1e7e34' : '#cc0000',
             display: 'inline-block',
           }} />
-          <span style={{ fontSize: 13, color: '#666' }}>{isOnline ? 'Online' : 'Offline'}</span>
+          <span style={{ fontSize: 13, color: '#666' }}>{isOnline ? '在线' : '离线'}</span>
         </div>
       </div>
 
       {lastSyncAt && (
         <p style={{ color: '#999', fontSize: 12, margin: '0 0 16px' }}>
-          Last sync: {lastSyncAt.toLocaleTimeString()}
+          上次同步: {lastSyncAt.toLocaleTimeString()}
         </p>
       )}
 
@@ -44,18 +44,18 @@ export function PendingSyncPage() {
           marginBottom: 24,
         }}
       >
-        {isSyncing ? '⏳ Syncing...' : '🔄 Retry Sync Now'}
+        {isSyncing ? '⏳ 同步中...' : '🔄 立即同步'}
       </button>
 
       <h3 style={{ margin: '0 0 12px', fontSize: 15, color: '#333' }}>
-        Pending Items ({items?.length ?? 0})
+        待同步 ({items?.length ?? 0})
       </h3>
 
-      {!items && <p style={{ color: '#666' }}>Loading...</p>}
+      {!items && <p style={{ color: '#666' }}>加载中...</p>}
       {items && items.length === 0 && (
         <div style={{ textAlign: 'center', padding: 40, color: '#1e7e34' }}>
           <div style={{ fontSize: 40 }}>✅</div>
-          <p style={{ marginTop: 8 }}>All items synced!</p>
+          <p style={{ marginTop: 8 }}>全部已同步！</p>
         </div>
       )}
 
@@ -82,7 +82,7 @@ export function PendingSyncPage() {
               background: item.retry_count >= 3 ? '#ffcdd2' : '#fff3e0',
               color: item.retry_count >= 3 ? '#c62828' : '#e65100',
             }}>
-              {item.retry_count >= 3 ? 'FAILED' : `Retry ${item.retry_count}`}
+              {item.retry_count >= 3 ? '失败' : `重试 ${item.retry_count}`}
             </span>
           </div>
           <p style={{ margin: 0, fontSize: 11, color: '#999' }}>

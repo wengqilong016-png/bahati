@@ -74,28 +74,28 @@ export function DailyTaskPage() {
       setSaved(true);
       setTimeout(() => navigate('/settlement'), 1200);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
+      setError(err instanceof Error ? err.message : '保存失败');
     } finally {
       setSaving(false);
     }
   };
 
   if (!kiosk) {
-    return <div style={{ padding: 16, color: '#666' }}>Loading kiosk...</div>;
+    return <div style={{ padding: 16, color: '#666' }}>加载中...</div>;
   }
 
   return (
     <div style={{ padding: '16px 16px 80px' }}>
       <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: '#0066CC', fontSize: 14, cursor: 'pointer', marginBottom: 12, padding: 0 }}>
-        ← Back
+        ← 返回
       </button>
 
-      <h2 style={{ margin: '0 0 4px', color: '#0066CC' }}>Daily Task</h2>
+      <h2 style={{ margin: '0 0 4px', color: '#0066CC' }}>每日任务</h2>
       <p style={{ margin: '0 0 20px', color: '#666', fontSize: 14 }}>
         {kiosk.merchant_name} · {kiosk.location_name}
       </p>
       <div style={{ background: '#f0f7ff', borderRadius: 8, padding: 12, marginBottom: 20 }}>
-        <p style={{ margin: 0, fontSize: 13, color: '#555' }}>Last Recorded Score</p>
+        <p style={{ margin: 0, fontSize: 13, color: '#555' }}>上次记录分数</p>
         <p style={{ margin: '4px 0 0', fontSize: 28, fontWeight: 700, color: '#0066CC' }}>
           {kiosk.last_recorded_score}
         </p>
@@ -103,21 +103,21 @@ export function DailyTaskPage() {
 
       {saved && (
         <div style={{ background: '#e6f4ea', color: '#1e7e34', padding: 12, borderRadius: 8, marginBottom: 16 }}>
-          ✅ Saved! Redirecting to settlement...
+          ✅ 已保存！正在跳转结算页面...
         </div>
       )}
       {error && <div style={{ background: '#fce8e6', color: '#c62828', padding: 12, borderRadius: 8, marginBottom: 16 }}>{error}</div>}
 
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>Current Score *</label>
+          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>当前分数 *</label>
           <input
             type="number"
             value={currentScore}
             onChange={e => setCurrentScore(e.target.value)}
             required
             min={0}
-            placeholder={`Must be > ${kiosk.last_recorded_score}`}
+            placeholder={`必须大于 ${kiosk.last_recorded_score}`}
             style={{
               width: '100%', padding: '10px 12px',
               border: `1px solid ${scoreError ? '#c62828' : '#ddd'}`,
@@ -132,7 +132,7 @@ export function DailyTaskPage() {
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>Notes</label>
+          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>备注</label>
           <textarea
             value={notes}
             onChange={e => setNotes(e.target.value)}
@@ -143,7 +143,7 @@ export function DailyTaskPage() {
 
         <div style={{ marginBottom: 20 }}>
           <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
-            Photos ({photos.length})
+            照片 ({photos.length})
           </label>
           <PhotoCapture
             photos={photos}
@@ -158,7 +158,7 @@ export function DailyTaskPage() {
           disabled={saving || !!scoreError}
           style={{ width: '100%', padding: 14, background: (saving || scoreError) ? '#ccc' : '#0066CC', color: '#fff', border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 600, cursor: (saving || scoreError) ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
         >
-          {saving ? 'Saving...' : 'Submit Task'}
+          {saving ? '保存中...' : '提交任务'}
         </button>
 
         {scoreError && (
@@ -167,7 +167,7 @@ export function DailyTaskPage() {
             onClick={() => navigate(`/kiosks/${kiosk.id}/score-reset`)}
             style={{ width: '100%', marginTop: 12, padding: 14, background: '#fff', color: '#e65100', border: '1px solid #e65100', borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
           >
-            Submit Score Reset Request Instead
+            提交分数重置申请
           </button>
         )}
       </form>

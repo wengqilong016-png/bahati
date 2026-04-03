@@ -8,11 +8,11 @@ export function KioskListPage() {
 
   return (
     <div style={{ padding: '16px 16px 80px' }}>
-      <h2 style={{ margin: '0 0 16px', color: '#0066CC' }}>My Kiosks</h2>
-      {!kiosks && <p style={{ color: '#666' }}>Loading...</p>}
+      <h2 style={{ margin: '0 0 16px', color: '#0066CC' }}>我的机器</h2>
+      {!kiosks && <p style={{ color: '#666' }}>加载中...</p>}
       {kiosks && kiosks.length === 0 && (
         <p style={{ color: '#666', textAlign: 'center', marginTop: 40 }}>
-          No kiosks assigned. Sync to fetch your kiosks.
+          暂无分配的机器，请同步数据。
         </p>
       )}
       {kiosks && kiosks.map(kiosk => (
@@ -38,7 +38,7 @@ export function KioskListPage() {
               <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#0066CC' }}>
                 {kiosk.last_recorded_score}
               </p>
-              <p style={{ margin: '2px 0 0', fontSize: 11, color: '#999' }}>score</p>
+              <p style={{ margin: '2px 0 0', fontSize: 11, color: '#999' }}>分数</p>
               <span style={{
                 display: 'inline-block',
                 marginTop: 4,
@@ -58,13 +58,13 @@ export function KioskListPage() {
               onClick={e => { e.stopPropagation(); navigate(`/kiosks/${kiosk.id}/task`); }}
               style={{ flex: 1, padding: '8px', background: '#0066CC', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}
             >
-              Daily Task
+              每日任务
             </button>
             <button
               onClick={e => { e.stopPropagation(); navigate(`/kiosks/${kiosk.id}/score-reset`); }}
               style={{ flex: 1, padding: '8px', background: '#fff', color: '#0066CC', border: '1px solid #0066CC', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}
             >
-              Score Reset
+              分数重置
             </button>
           </div>
         </div>

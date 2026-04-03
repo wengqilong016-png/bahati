@@ -43,7 +43,7 @@ export function LoginPage() {
         boxShadow: '0 2px 16px rgba(0,0,0,0.1)',
       }}>
         <h1 style={{ color: '#0066CC', margin: '0 0 8px', fontSize: 24 }}>SmartKiosk</h1>
-        <p style={{ color: '#666', margin: '0 0 24px', fontSize: 14 }}>Driver App</p>
+        <p style={{ color: '#666', margin: '0 0 24px', fontSize: 14 }}>司机端</p>
 
         {/* Connection status badge – only shown for actionable error states */}
         {(connStatus === 'config-error' || connStatus === 'network-error') && (
@@ -64,8 +64,8 @@ export function LoginPage() {
             </span>
             <span>
               {connStatus === 'config-error'
-                ? 'Backend config missing: rename your environment variables to VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your deployment platform.'
-                : 'Cannot connect to server. Please check your network connection.'}
+                ? '后端配置缺失：请在部署平台将环境变量重命名为 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY。'
+                : '无法连接服务器，请检查网络连接。'}
             </span>
           </div>
         )}
@@ -73,7 +73,7 @@ export function LoginPage() {
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 600 }}>
-              Email
+              邮箱
             </label>
             <input
               type="email"
@@ -92,7 +92,7 @@ export function LoginPage() {
           </div>
           <div style={{ marginBottom: 24 }}>
             <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 600 }}>
-              Password
+              密码
             </label>
             <input
               type="password"
@@ -130,7 +130,7 @@ export function LoginPage() {
               opacity: loading ? 0.7 : 1,
             }}
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? '登录中...' : '登录'}
           </button>
         </form>
       </div>

@@ -21,7 +21,7 @@ export function HomePage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, color: '#0066CC' }}>SmartKiosk</h1>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666' }}>Driver Dashboard</p>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666' }}>司机工作台</p>
         </div>
         <span style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -30,25 +30,25 @@ export function HomePage() {
           color: isOnline ? '#1e7e34' : '#c62828',
         }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: isOnline ? '#1e7e34' : '#c62828' }} />
-          {isOnline ? 'Online' : 'Offline'}
+          {isOnline ? '在线' : '离线'}
         </span>
       </div>
 
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
-        <StatCard label="My Kiosks" value={kioskCount} color="#0066CC" onClick={() => navigate('/kiosks')} />
-        <StatCard label="Today Tasks" value={todayTaskCount} color="#1e7e34" onClick={() => navigate('/kiosks')} />
-        <StatCard label="Pending Sync" value={pendingSyncCount} color={pendingSyncCount > 0 ? '#e65100' : '#999'} onClick={() => navigate('/sync')} />
-        <StatCard label="Reset Requests" value={pendingResetCount} color="#7b1fa2" />
+        <StatCard label="我的机器" value={kioskCount} color="#0066CC" onClick={() => navigate('/kiosks')} />
+        <StatCard label="今日任务" value={todayTaskCount} color="#1e7e34" onClick={() => navigate('/kiosks')} />
+        <StatCard label="待同步" value={pendingSyncCount} color={pendingSyncCount > 0 ? '#e65100' : '#999'} onClick={() => navigate('/sync')} />
+        <StatCard label="重置申请" value={pendingResetCount} color="#7b1fa2" />
       </div>
 
       {/* Quick actions */}
-      <h3 style={{ margin: '0 0 12px', fontSize: 15, color: '#333' }}>Quick Actions</h3>
+      <h3 style={{ margin: '0 0 12px', fontSize: 15, color: '#333' }}>快捷操作</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <ActionButton icon="📋" label="Record Daily Task" subtitle="Select a kiosk and submit" onClick={() => navigate('/kiosks')} />
-        <ActionButton icon="➕" label="Kiosk Onboarding" subtitle="Register a new kiosk" onClick={() => navigate('/onboard')} />
-        <ActionButton icon="🔄" label="Re-certification" subtitle="Re-certify an existing kiosk" onClick={() => navigate('/onboard?type=recertification')} />
-        <ActionButton icon="📊" label="My Daily Summary" subtitle="View today's work" onClick={() => navigate('/summary')} />
+        <ActionButton icon="📋" label="记录每日任务" subtitle="选择机器并提交" onClick={() => navigate('/kiosks')} />
+        <ActionButton icon="➕" label="新机入网" subtitle="登记新机器" onClick={() => navigate('/onboard')} />
+        <ActionButton icon="🔄" label="复查" subtitle="复查现有机器" onClick={() => navigate('/onboard?type=recertification')} />
+        <ActionButton icon="📊" label="今日汇总" subtitle="查看今日工作" onClick={() => navigate('/summary')} />
       </div>
     </div>
   );

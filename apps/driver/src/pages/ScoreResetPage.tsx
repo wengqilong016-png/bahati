@@ -53,27 +53,27 @@ export function ScoreResetPage() {
       setSaved(true);
       setTimeout(() => navigate('/kiosks'), 1200);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
+      setError(err instanceof Error ? err.message : '保存失败');
     } finally {
       setSaving(false);
     }
   };
 
-  if (!kiosk) return <div style={{ padding: 16, color: '#666' }}>Loading kiosk...</div>;
+  if (!kiosk) return <div style={{ padding: 16, color: '#666' }}>加载中...</div>;
 
   return (
     <div style={{ padding: '16px 16px 80px' }}>
       <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: '#0066CC', fontSize: 14, cursor: 'pointer', marginBottom: 12, padding: 0 }}>
-        ← Back
+        ← 返回
       </button>
 
-      <h2 style={{ margin: '0 0 4px', color: '#0066CC' }}>Request Score Reset</h2>
+      <h2 style={{ margin: '0 0 4px', color: '#0066CC' }}>申请分数重置</h2>
       <p style={{ margin: '0 0 20px', color: '#666', fontSize: 14 }}>
         {kiosk.merchant_name} · {kiosk.location_name}
       </p>
 
       <div style={{ background: '#fff3e0', borderRadius: 8, padding: 12, marginBottom: 20 }}>
-        <p style={{ margin: 0, fontSize: 13, color: '#e65100' }}>Current Score</p>
+        <p style={{ margin: 0, fontSize: 13, color: '#e65100' }}>当前分数</p>
         <p style={{ margin: '4px 0 0', fontSize: 28, fontWeight: 700, color: '#e65100' }}>
           {kiosk.last_recorded_score}
         </p>
@@ -82,33 +82,33 @@ export function ScoreResetPage() {
       {/* Existing request status from approval flow */}
       {latestRequest && latestRequest.status === 'pending' && (
         <div style={{ background: '#fff3e0', border: '1px solid #ffe082', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-          ⏳ A score reset request is pending approval ({latestRequest.current_score} → {latestRequest.requested_new_score}). Please wait for the result.
+          ⏳ 分数重置申请审核中（{latestRequest.current_score} → {latestRequest.requested_new_score}），请等待结果。
         </div>
       )}
       {latestRequest && latestRequest.status === 'approved' && (
         <div style={{ background: '#e6f4ea', border: '1px solid #a5d6a7', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-          ✅ Last reset request approved ({latestRequest.current_score} → {latestRequest.requested_new_score}). Score updated.
+          ✅ 上次重置申请已通过（{latestRequest.current_score} → {latestRequest.requested_new_score}），分数已更新。
         </div>
       )}
       {latestRequest && latestRequest.status === 'rejected' && (
         <div style={{ background: '#fce8e6', border: '1px solid #ef9a9a', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-          ❌ Last reset request rejected{latestRequest.rejection_reason ? `: ${latestRequest.rejection_reason}` : ''}
+          ❌ 上次重置申请被拒绝{latestRequest.rejection_reason ? `：${latestRequest.rejection_reason}` : ''}
         </div>
       )}
 
-      {saved && <div style={{ background: '#e6f4ea', color: '#1e7e34', padding: 12, borderRadius: 8, marginBottom: 16 }}>✅ Request submitted for approval</div>}
+      {saved && <div style={{ background: '#e6f4ea', color: '#1e7e34', padding: 12, borderRadius: 8, marginBottom: 16 }}>✅ 申请已提交，等待审批</div>}
       {error && <div style={{ background: '#fce8e6', color: '#c62828', padding: 12, borderRadius: 8, marginBottom: 16 }}>{error}</div>}
 
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>Requested New Score</label>
+          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>申请新分数</label>
           <input
             type="number"
             value={newScore}
             onChange={e => setNewScore(e.target.value)}
             required
             min={0}
-            placeholder={`Must be < ${kiosk.last_recorded_score}`}
+            placeholder={`必须小于 ${kiosk.last_recorded_score}`}
             style={{
               width: '100%', padding: '10px 12px',
               border: `1px solid ${scoreError ? '#c62828' : '#ddd'}`,
@@ -123,13 +123,13 @@ export function ScoreResetPage() {
         </div>
 
         <div style={{ marginBottom: 24 }}>
-          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>Reason *</label>
+          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>原因 *</label>
           <textarea
             value={reason}
             onChange={e => setReason(e.target.value)}
             required
             rows={4}
-            placeholder="Explain why the score needs to be reset..."
+            placeholder="请说明为什么需要重置分数..."
             style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box', resize: 'vertical' }}
           />
         </div>
@@ -139,7 +139,7 @@ export function ScoreResetPage() {
           disabled={saving || !!scoreError}
           style={{ width: '100%', padding: 14, background: (saving || scoreError) ? '#ccc' : '#0066CC', color: '#fff', border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 600, cursor: (saving || scoreError) ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
         >
-          {saving ? 'Submitting...' : 'Submit Reset Request'}
+          {saving ? '提交中...' : '提交重置申请'}
         </button>
       </form>
     </div>

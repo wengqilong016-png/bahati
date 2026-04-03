@@ -57,7 +57,7 @@ function useDriverBalances(): BalanceState {
           return;
         }
         if (!data) {
-          setError('No balance data returned');
+          setError('未返回余额数据');
           return;
         }
         const row = Array.isArray(data) ? data[0] : data;
@@ -69,7 +69,7 @@ function useDriverBalances(): BalanceState {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load balances');
+          setError(err instanceof Error ? err.message : '加载余额失败');
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -87,7 +87,7 @@ function BalanceCard({ state }: { state: BalanceState }) {
   if (state.loading && !state.balances) {
     return (
       <div style={{ background: '#f5f5f5', borderRadius: 8, padding: 14, marginBottom: 16, textAlign: 'center' }}>
-        <p style={{ margin: 0, fontSize: 13, color: '#888' }}>Loading balances…</p>
+        <p style={{ margin: 0, fontSize: 13, color: '#888' }}>加载余额中…</p>
       </div>
     );
   }
@@ -100,7 +100,7 @@ function BalanceCard({ state }: { state: BalanceState }) {
           onClick={state.refresh}
           style={{ background: '#c62828', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: 13, cursor: 'pointer' }}
         >
-          Retry
+          重试
         </button>
       </div>
     );
@@ -109,11 +109,11 @@ function BalanceCard({ state }: { state: BalanceState }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
       <div style={{ background: '#e3f2fd', borderRadius: 8, padding: 12, textAlign: 'center' }}>
-        <p style={{ margin: 0, fontSize: 11, color: '#1565c0', fontWeight: 600 }}>🪙 Coin Balance</p>
+        <p style={{ margin: 0, fontSize: 11, color: '#1565c0', fontWeight: 600 }}>🪙 硬币余额</p>
         <p style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 700, color: '#0d47a1' }}>{fmtTZS(state.balances.coin_balance)}</p>
       </div>
       <div style={{ background: '#e8f5e9', borderRadius: 8, padding: 12, textAlign: 'center' }}>
-        <p style={{ margin: 0, fontSize: 11, color: '#2e7d32', fontWeight: 600 }}>💵 Cash Balance</p>
+        <p style={{ margin: 0, fontSize: 11, color: '#2e7d32', fontWeight: 600 }}>💵 现金余额</p>
         <p style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 700, color: '#1b5e20' }}>{fmtTZS(state.balances.cash_balance)}</p>
       </div>
     </div>
@@ -139,21 +139,21 @@ function SettledCard({ task, kiosk }: SettledCardProps) {
         <span style={{ fontWeight: 600, fontSize: 14 }}>
           {kiosk?.serial_number ?? '—'} · {kiosk?.merchant_name ?? '—'}
         </span>
-        <span style={{ background: '#1e7e34', color: '#fff', borderRadius: 12, padding: '2px 10px', fontSize: 12 }} aria-label="Settled">✅ Settled</span>
+        <span style={{ background: '#1e7e34', color: '#fff', borderRadius: 12, padding: '2px 10px', fontSize: 12 }} aria-label="Settled">✅ 已结算</span>
       </div>
       <div style={{ fontSize: 13, color: '#444', lineHeight: 1.8 }}>
-        <div>Score: {task.score_before ?? '—'} → {task.current_score}</div>
-        {grossRevenue !== undefined && <div>Revenue: {fmtTZS(grossRevenue)}</div>}
+        <div>分数: {task.score_before ?? '—'} → {task.current_score}</div>
+        {grossRevenue !== undefined && <div>营收: {fmtTZS(grossRevenue)}</div>}
         {dividendAmount !== undefined && (
           <div>
-            Dividend ({task.dividend_rate_snapshot !== undefined ? `${(task.dividend_rate_snapshot * 100).toFixed(0)}%` : '—'}):
+            分红 ({task.dividend_rate_snapshot !== undefined ? `${(task.dividend_rate_snapshot * 100).toFixed(0)}%` : '—'}):
             {' '}{fmtTZS(dividendAmount)}
           </div>
         )}
-        <div>Dividend method: {task.dividend_method === 'cash' ? 'Cash withdrawal' : task.dividend_method === 'retained' ? 'Retained' : '—'}</div>
-        {task.exchange_amount !== undefined && <div>Exchange: {fmtTZS(task.exchange_amount)}</div>}
+        <div>分红方式: {task.dividend_method === 'cash' ? '现金提取' : task.dividend_method === 'retained' ? '留存' : '—'}</div>
+        {task.exchange_amount !== undefined && <div>兑换: {fmtTZS(task.exchange_amount)}</div>}
         {task.expense_amount !== undefined && task.expense_amount > 0 && (
-          <div>Expense: {fmtTZS(task.expense_amount)}{task.expense_note ? ` (${task.expense_note})` : ''}</div>
+          <div>支出: {fmtTZS(task.expense_amount)}{task.expense_note ? ` (${task.expense_note})` : ''}</div>
         )}
       </div>
     </div>
@@ -233,7 +233,7 @@ function SettlementForm({ task, kiosk, driverBalances, onSettled }: SettlementFo
     e.preventDefault();
     setError(null);
     if (exAmt < 0 || expAmt < 0) {
-      setError('Amounts cannot be negative');
+      setError('金额不能为负数');
       return;
     }
     setSubmitting(true);
@@ -247,7 +247,7 @@ function SettlementForm({ task, kiosk, driverBalances, onSettled }: SettlementFo
       });
       onSettled();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Settlement failed. Please try again.';
+      const msg = err instanceof Error ? err.message : '结算失败，请重试。';
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -271,7 +271,7 @@ function SettlementForm({ task, kiosk, driverBalances, onSettled }: SettlementFo
           </span>
           <span style={{ fontSize: 13, color: '#666', marginLeft: 8 }}>{kiosk?.merchant_name ?? ''}</span>
         </div>
-        <span style={{ background: '#fff9c4', color: '#f57f17', borderRadius: 12, padding: '2px 10px', fontSize: 12, border: '1px solid #ffe082' }}>🟡 Pending</span>
+        <span style={{ background: '#fff9c4', color: '#f57f17', borderRadius: 12, padding: '2px 10px', fontSize: 12, border: '1px solid #ffe082' }}>🟡 待结算</span>
       </div>
 
       {error && (
@@ -283,23 +283,23 @@ function SettlementForm({ task, kiosk, driverBalances, onSettled }: SettlementFo
 
       {/* Step-by-step calculation */}
       <div style={{ marginBottom: 16 }}>
-        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: '#555' }}>📊 Settlement Breakdown</p>
+        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: '#555' }}>📊 结算明细</p>
 
         {driverBalances && (
-          <CalcRow label="Opening Balance" coin={startCoin} cash={startCash} />
+          <CalcRow label="期初余额" coin={startCoin} cash={startCash} />
         )}
 
         <CalcRow
-          label={`① Score: ${task.score_before ?? '—'} → ${task.current_score}`}
-          detail={grossRevenue !== undefined ? `+${fmtTZS(grossRevenue)} coins` : undefined}
+          label={`① 分数: ${task.score_before ?? '—'} → ${task.current_score}`}
+          detail={grossRevenue !== undefined ? `+${fmtTZS(grossRevenue)} 硬币` : undefined}
           coin={afterCollect_coin}
           cash={afterCollect_cash}
         />
 
         {dividendAmount !== undefined && dividendRate !== undefined && (
           <CalcRow
-            label={`② Dividend (${(dividendRate * 100).toFixed(0)}%): ${fmtTZS(dividendAmount)}`}
-            detail={dividendMethod === 'cash' ? '→ Cash paid' : '→ Retained'}
+            label={`② 分红 (${(dividendRate * 100).toFixed(0)}%): ${fmtTZS(dividendAmount)}`}
+            detail={dividendMethod === 'cash' ? '→ 现金支付' : '→ 留存'}
             coin={afterDividend_coin}
             cash={afterDividend_cash}
           />
@@ -309,7 +309,7 @@ function SettlementForm({ task, kiosk, driverBalances, onSettled }: SettlementFo
       <form onSubmit={handleSubmit}>
         {/* Dividend method */}
         <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Dividend Method</label>
+          <label style={labelStyle}>分红方式</label>
           <div style={{ display: 'flex', gap: 12 }}>
             {(['cash', 'retained'] as const).map(m => (
               <label key={m} style={{
@@ -319,7 +319,7 @@ function SettlementForm({ task, kiosk, driverBalances, onSettled }: SettlementFo
                 background: dividendMethod === m ? '#e3f2fd' : '#fff',
               }}>
                 <input type="radio" name={`dividend-${task.id}`} value={m} checked={dividendMethod === m} onChange={() => setDividendMethod(m)} style={{ display: 'none' }} />
-                {m === 'cash' ? '💵 Cash' : '🏦 Retained'}
+                {m === 'cash' ? '💵 现金' : '🏦 留存'}
               </label>
             ))}
           </div>
@@ -327,31 +327,31 @@ function SettlementForm({ task, kiosk, driverBalances, onSettled }: SettlementFo
 
         {/* Exchange amount */}
         <div style={{ marginBottom: 10 }}>
-          <label style={labelStyle}>③ Token Exchange (TZS)</label>
+          <label style={labelStyle}>③ 代币兑换 (TZS)</label>
           <input
             type="number"
             min={0}
             step="1"
             value={exchangeAmount}
             onChange={e => setExchangeAmount(e.target.value)}
-            placeholder="Coins to exchange for cash"
+            placeholder="兑换现金的硬币数"
             style={inputStyle}
           />
           {exAmt > 0 && driverBalances && (
-            <CalcRow label="After exchange" coin={afterExchange_coin} cash={afterExchange_cash} />
+            <CalcRow label="兑换后" coin={afterExchange_coin} cash={afterExchange_cash} />
           )}
         </div>
 
         {/* Expense amount */}
         <div style={{ marginBottom: 10 }}>
-          <label style={labelStyle}>④ Expense (TZS)</label>
+          <label style={labelStyle}>④ 支出 (TZS)</label>
           <input
             type="number"
             min={0}
             step="1"
             value={expenseAmount}
             onChange={e => setExpenseAmount(e.target.value)}
-            placeholder="Expense amount"
+            placeholder="支出金额"
             style={inputStyle}
           />
         </div>
@@ -359,12 +359,12 @@ function SettlementForm({ task, kiosk, driverBalances, onSettled }: SettlementFo
         {/* Expense note */}
         {(expAmt > 0 || expenseNote) && (
           <div style={{ marginBottom: 14 }}>
-            <label style={labelStyle}>Expense Note <span style={{ fontWeight: 400, color: '#888' }}>(optional)</span></label>
+            <label style={labelStyle}>支出备注 <span style={{ fontWeight: 400, color: '#888' }}>(可选)</span></label>
             <input
               type="text"
               value={expenseNote}
               onChange={e => setExpenseNote(e.target.value)}
-              placeholder="e.g. transport, fuel, repair..."
+              placeholder="例如：交通、油费、维修..."
               style={inputStyle}
             />
           </div>
@@ -372,7 +372,7 @@ function SettlementForm({ task, kiosk, driverBalances, onSettled }: SettlementFo
 
         {/* Final balance preview */}
         {driverBalances && (
-          <CalcRow label="⑤ Final Balance (projected)" coin={final_coin} cash={final_cash} highlight />
+          <CalcRow label="⑤ 预计最终余额" coin={final_coin} cash={final_cash} highlight />
         )}
 
         <button
@@ -386,7 +386,7 @@ function SettlementForm({ task, kiosk, driverBalances, onSettled }: SettlementFo
             opacity: submitting ? 0.7 : 1,
           }}
         >
-          {submitting ? 'Submitting...' : 'Confirm Settlement'}
+          {submitting ? '提交中...' : '确认结算'}
         </button>
       </form>
     </div>
@@ -446,21 +446,21 @@ export function SettlementPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         {singleMode ? (
           <button onClick={() => navigate('/kiosks')} style={{ background: 'none', border: 'none', color: '#0066CC', fontSize: 14, cursor: 'pointer', padding: 0 }}>
-            ← Back to Kiosks
+            ← 返回机器列表
           </button>
         ) : (
-          <h2 style={{ margin: 0, color: '#0066CC' }}>Today's Settlements</h2>
+          <h2 style={{ margin: 0, color: '#0066CC' }}>今日结算</h2>
         )}
         <button
           onClick={handleRefresh}
           disabled={syncing}
           style={{ background: 'none', border: '1px solid #0066CC', color: '#0066CC', borderRadius: 6, padding: '6px 12px', fontSize: 13, cursor: syncing ? 'not-allowed' : 'pointer', opacity: syncing ? 0.6 : 1 }}
         >
-          {syncing ? 'Syncing...' : '🔄 Refresh'}
+          {syncing ? '同步中...' : '🔄 刷新'}
         </button>
       </div>
 
-      {singleMode && <h2 style={{ margin: '0 0 12px', color: '#0066CC', fontSize: 18 }}>Task Settlement</h2>}
+      {singleMode && <h2 style={{ margin: '0 0 12px', color: '#0066CC', fontSize: 18 }}>任务结算</h2>}
 
       {/* Current balances */}
       <BalanceCard state={balanceState} />
@@ -468,7 +468,7 @@ export function SettlementPage() {
       {/* Pending tasks */}
       {pendingTasks.length > 0 ? (
         <>
-          {!singleMode && <h3 style={{ margin: '0 0 12px', fontSize: 14, color: '#555', fontWeight: 600 }}>Pending Tasks</h3>}
+          {!singleMode && <h3 style={{ margin: '0 0 12px', fontSize: 14, color: '#555', fontWeight: 600 }}>待结算任务</h3>}
           {pendingTasks.map(task => (
             <SettlementForm
               key={task.id}
@@ -482,14 +482,14 @@ export function SettlementPage() {
         </>
       ) : allTasks.length === 0 ? (
         <div style={{ background: '#f5f5f5', borderRadius: 8, padding: 16, textAlign: 'center', color: '#888', marginBottom: 16 }}>
-          <p style={{ margin: 0, fontSize: 14 }}>{singleMode ? 'Task not found.' : 'No pending tasks today.'}</p>
+          <p style={{ margin: 0, fontSize: 14 }}>{singleMode ? '未找到任务。' : '今日暂无待结算任务。'}</p>
         </div>
       ) : null}
 
       {/* Settled tasks */}
       {settledTasks.length > 0 && (
         <>
-          {!singleMode && <h3 style={{ margin: '16px 0 12px', fontSize: 14, color: '#555', fontWeight: 600 }}>Settled Tasks</h3>}
+          {!singleMode && <h3 style={{ margin: '16px 0 12px', fontSize: 14, color: '#555', fontWeight: 600 }}>已结算任务</h3>}
           {settledTasks.map(task => (
             <SettledCard key={task.id} task={task} kiosk={kioskMap.get(task.kiosk_id)} />
           ))}
@@ -504,14 +504,14 @@ export function SettlementPage() {
             onClick={() => navigate('/kiosks')}
             style={{ flex: 1, padding: 14, background: '#0066CC', color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
           >
-            🏪 Next Kiosk
+            🏪 下一台机器
           </button>
           <button
             type="button"
             onClick={() => navigate('/reconciliation')}
             style={{ flex: 1, padding: 14, background: '#fff', color: '#0066CC', border: '1px solid #0066CC', borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
           >
-            📋 Daily Close
+            📋 日结
           </button>
         </div>
       )}
@@ -519,17 +519,18 @@ export function SettlementPage() {
       {/* All-tasks mode: all settled prompt */}
       {!singleMode && tasks !== undefined && allTasks.length > 0 && pendingTasks.length === 0 && (
         <div style={{ background: '#e6f4ea', border: '1px solid #a5d6a7', borderRadius: 8, padding: 16, marginBottom: 16, textAlign: 'center' }}>
-          <p style={{ margin: '0 0 10px', fontSize: 14, color: '#1e7e34', fontWeight: 600 }}>✅ All tasks settled!</p>
+          <p style={{ margin: '0 0 10px', fontSize: 14, color: '#1e7e34', fontWeight: 600 }}>✅ 所有任务已结算！</p>
           <button
             type="button"
             onClick={() => navigate('/reconciliation')}
             style={{ background: '#0066CC', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
           >
-            📋 Go to Daily Close
+            📋 前往日结
           </button>
         </div>
       )}
     </div>
   );
 }
+
 

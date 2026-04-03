@@ -46,8 +46,8 @@ export function OnboardKioskPage() {
   const [error, setError] = useState<string | null>(null);
 
   const isRecert = onboardingType === 'recertification';
-  const title = isRecert ? 'Re-certification' : 'New Machine Onboarding';
-  const submitLabel = isRecert ? 'Submit Re-certification' : 'Submit Onboarding';
+  const title = isRecert ? '复查' : '新机入网';
+  const submitLabel = isRecert ? '提交复查' : '提交入网';
 
   // Clear mode-specific fields when switching between onboarding and re-certification
   useEffect(() => {
@@ -125,7 +125,7 @@ export function OnboardKioskPage() {
       setSaved(true);
       setTimeout(() => navigate('/home'), 1200);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
+      setError(err instanceof Error ? err.message : '保存失败');
     } finally {
       setSaving(false);
     }
@@ -134,7 +134,7 @@ export function OnboardKioskPage() {
   return (
     <div style={{ padding: '16px 16px 80px' }}>
       <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: '#0066CC', fontSize: 14, cursor: 'pointer', marginBottom: 12, padding: 0 }}>
-        ← Back
+        ← 返回
       </button>
 
       <h2 style={{ margin: '0 0 16px', color: '#0066CC' }}>{title}</h2>
@@ -153,14 +153,14 @@ export function OnboardKioskPage() {
               color: onboardingType === t ? '#fff' : '#333',
             }}
           >
-            {t === 'onboarding' ? '➕ Onboarding' : '🔄 Re-certification'}
+            {t === 'onboarding' ? '➕ 入网' : '🔄 复查'}
           </button>
         ))}
       </div>
 
       {saved && (
         <div style={{ background: '#e6f4ea', color: '#1e7e34', padding: 12, borderRadius: 8, marginBottom: 16 }}>
-          ✅ Saved! Redirecting...
+          ✅ 已保存！正在跳转...
         </div>
       )}
       {error && (
@@ -173,7 +173,7 @@ export function OnboardKioskPage() {
       {onboardingRecords && onboardingRecords.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <h3 style={{ margin: '0 0 8px', fontSize: 14, color: '#555', fontWeight: 600 }}>
-            Recent Submissions
+            最近提交
           </h3>
           {[...onboardingRecords]
             .sort((a, b) => b.created_at.localeCompare(a.created_at))
@@ -184,8 +184,8 @@ export function OnboardKioskPage() {
                 : rec.status === 'rejected' ? '#c62828' : '#e65100';
               const statusBg = rec.status === 'approved' ? '#e6f4ea'
                 : rec.status === 'rejected' ? '#fce8e6' : '#fff3e0';
-              const statusLabel = rec.status === 'approved' ? '✅ Approved'
-                : rec.status === 'rejected' ? '❌ Rejected' : '⏳ Pending';
+              const statusLabel = rec.status === 'approved' ? '✅ 已通过'
+                : rec.status === 'rejected' ? '❌ 已拒绝' : '⏳ 审核中';
               return (
                 <div key={rec.id} style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, padding: 10, marginBottom: 6 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -209,7 +209,7 @@ export function OnboardKioskPage() {
         {isRecert && (
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-              Select Kiosk *
+              选择机器 *
             </label>
             <select
               value={kioskId}
@@ -217,7 +217,7 @@ export function OnboardKioskPage() {
               required
               style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box', background: '#fff' }}
             >
-              <option value="">— Select a kiosk —</option>
+              <option value="">— 请选择机器 —</option>
               {kiosks?.map(k => (
                 <option key={k.id} value={k.id}>
                   {k.serial_number} — {k.merchant_name} ({k.location_name})
@@ -226,7 +226,7 @@ export function OnboardKioskPage() {
             </select>
             {kiosks && kiosks.length === 0 && (
               <p style={{ margin: '6px 0 0', fontSize: 12, color: '#e65100' }}>
-                No kiosks found. Please sync first to load your assigned kiosks.
+                未找到机器，请先同步数据。
               </p>
             )}
           </div>
@@ -236,34 +236,34 @@ export function OnboardKioskPage() {
           <>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-                Merchant Name *
+                商家名称 *
               </label>
               <input
                 type="text"
                 value={merchantName}
                 onChange={e => setMerchantName(e.target.value)}
                 required
-                placeholder="Bahati Store"
+                placeholder="例：Bahati 商店"
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-                Merchant Contact Name
+                商家联系人
               </label>
               <input
                 type="text"
                 value={merchantContactName}
                 onChange={e => setMerchantContactName(e.target.value)}
-                placeholder="John Doe"
+                placeholder="联系人姓名"
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-                Merchant Phone
+                商家电话
               </label>
               <input
                 type="tel"
@@ -276,14 +276,14 @@ export function OnboardKioskPage() {
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-                Kiosk Location *
+                机器位置 *
               </label>
               <input
                 type="text"
                 value={locationName}
                 onChange={e => setLocationName(e.target.value)}
                 required
-                placeholder="Samora Avenue, Dar es Salaam"
+                placeholder="详细地址"
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box' }}
               />
             </div>
@@ -294,7 +294,7 @@ export function OnboardKioskPage() {
         {!isRecert && (
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-              Machine Serial Number *
+              机器编号 *
             </label>
             <input
               type="text"
@@ -311,7 +311,7 @@ export function OnboardKioskPage() {
         {!isRecert && (
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-              Dividend Rate (%) *
+              分红比例 (%) *
             </label>
             <input
               type="number"
@@ -332,7 +332,7 @@ export function OnboardKioskPage() {
         {!isRecert && (
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-              Initial Coin Loan
+              初始硬币借出
             </label>
             <input
               type="number"
@@ -350,7 +350,7 @@ export function OnboardKioskPage() {
         {!isRecert && (
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-              Initial Score Reading *
+              初始分数 *
             </label>
             <input
               type="number"
@@ -367,20 +367,20 @@ export function OnboardKioskPage() {
 
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14 }}>
-            Notes
+            备注
           </label>
           <textarea
             value={notes}
             onChange={e => setNotes(e.target.value)}
             rows={3}
-            placeholder={isRecert ? 'Describe re-certification details...' : 'Any notes about the installation...'}
+            placeholder={isRecert ? '复查说明...' : '安装说明...'}
             style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 15, boxSizing: 'border-box', resize: 'vertical' }}
           />
         </div>
 
         <div style={{ marginBottom: 20 }}>
           <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 14 }}>
-            Photos ({photos.length}){!isRecert && ' *'}
+            照片 ({photos.length}){!isRecert && ' *'}
           </label>
           <PhotoCapture
             photos={photos}
@@ -390,7 +390,7 @@ export function OnboardKioskPage() {
           />
           {!isRecert && photos.length === 0 && (
             <p style={{ margin: '6px 0 0', fontSize: 12, color: '#e65100' }}>
-              At least one photo is required for onboarding.
+              入网必须至少拍摄一张照片。
             </p>
           )}
         </div>
@@ -398,7 +398,7 @@ export function OnboardKioskPage() {
         {/* GPS location */}
         <div style={{ marginBottom: 20, padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <label style={{ fontWeight: 600, fontSize: 14 }}>📍 GPS Location</label>
+            <label style={{ fontWeight: 600, fontSize: 14 }}>📍 GPS 定位</label>
             <button
               type="button"
               disabled={geo.loading || saving}
@@ -409,7 +409,7 @@ export function OnboardKioskPage() {
                 fontSize: 13, cursor: geo.loading ? 'not-allowed' : 'pointer',
               }}
             >
-              {geo.loading ? 'Locating…' : geo.coords ? '🔄 Refresh' : '📍 Capture'}
+              {geo.loading ? '定位中…' : geo.coords ? '🔄 刷新' : '📍 获取定位'}
             </button>
           </div>
           {geo.coords && (
@@ -422,7 +422,7 @@ export function OnboardKioskPage() {
             <p style={{ margin: '6px 0 0', fontSize: 12, color: '#c62828' }}>⚠️ {geo.error}</p>
           )}
           {!geo.coords && !geo.error && !geo.loading && (
-            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#888' }}>GPS will be captured on submit</p>
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#888' }}>提交时自动获取定位</p>
           )}
         </div>
 
@@ -431,7 +431,7 @@ export function OnboardKioskPage() {
           disabled={saving}
           style={{ width: '100%', padding: 14, background: '#0066CC', color: '#fff', border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
         >
-          {saving ? 'Saving...' : submitLabel}
+          {saving ? '保存中...' : submitLabel}
         </button>
       </form>
     </div>

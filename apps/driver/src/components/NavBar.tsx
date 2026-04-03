@@ -2,12 +2,12 @@ import { NavLink } from 'react-router-dom';
 import { useConnectionStatus, type ConnectionStatus } from '../hooks/useConnectionStatus';
 
 const tabs = [
-  { to: '/home', label: 'Home', icon: '🏠' },
-  { to: '/kiosks', label: 'Kiosks', icon: '🏪' },
-  { to: '/onboard', label: 'Onboard', icon: '➕' },
-  { to: '/settlement', label: 'Settlement', icon: '💰' },
-  { to: '/reconciliation', label: 'Daily Close', icon: '📋' },
-  { to: '/sync', label: 'Sync', icon: '🔄' },
+  { to: '/home', label: '首页', icon: '🏠' },
+  { to: '/kiosks', label: '机器', icon: '🏪' },
+  { to: '/onboard', label: '入网', icon: '➕' },
+  { to: '/settlement', label: '结算', icon: '💰' },
+  { to: '/reconciliation', label: '日结', icon: '📋' },
+  { to: '/sync', label: '同步', icon: '🔄' },
 ];
 
 const CONNECTION_COLORS: Record<ConnectionStatus, string> = {
@@ -18,10 +18,10 @@ const CONNECTION_COLORS: Record<ConnectionStatus, string> = {
 };
 
 const CONNECTION_LABELS: Record<ConnectionStatus, string> = {
-  connected: 'Connected',
-  'config-error': 'Config Error',
-  'network-error': 'Network Error',
-  checking: 'Connecting…',
+  connected: '已连接',
+  'config-error': '配置错误',
+  'network-error': '网络错误',
+  checking: '连接中…',
 };
 
 export function NavBar() {
