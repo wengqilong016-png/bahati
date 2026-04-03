@@ -32,7 +32,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <span style={{ color: '#0066CC', fontSize: 16 }}>Loading...</span>
+        <span style={{ color: '#0066CC', fontSize: 16 }}>加载中…</span>
       </div>
     );
   }
@@ -57,7 +57,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 
 const PageSpinner = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '40vh' }}>
-    <span style={{ color: '#0066CC', fontSize: 16 }}>Loading...</span>
+    <span style={{ color: '#0066CC', fontSize: 16 }}>加载中…</span>
   </div>
 );
 

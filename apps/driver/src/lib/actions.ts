@@ -43,7 +43,7 @@ export async function saveDailyTask(input: SaveDailyTaskInput): Promise<void> {
     .first();
 
   if (existingTask?.settlement_status === 'settled') {
-    throw new Error('This kiosk has already been settled today and cannot be modified.');
+    throw new Error('此机器今天已结算，无法重复提交。');
   }
 
   const id = input.id ?? existingTask?.id ?? crypto.randomUUID();
@@ -147,10 +147,10 @@ export interface SaveOnboardingInput {
 
 export async function saveOnboarding(input: SaveOnboardingInput): Promise<void> {
   if (!UUID_RE.test(input.kioskId)) {
-    throw new Error('Invalid kiosk ID. Please select a kiosk from the list.');
+    throw new Error('无效的机器ID，请从列表中选择。');
   }
   if (input.onboardingType === 'onboarding' && input.photoUrls.length === 0) {
-    throw new Error('At least one photo is required for onboarding.');
+    throw new Error('入网至少需要一张照片。');
   }
 
   const id = input.id ?? crypto.randomUUID();
@@ -214,25 +214,25 @@ export interface CreateKioskOnboardingInput {
  */
 export async function createKioskOnboarding(input: CreateKioskOnboardingInput): Promise<{ kioskId: string; merchantId: string }> {
   if (input.merchantName.trim() === '') {
-    throw new Error('Merchant name is required.');
+    throw new Error('商家名称不能为空。');
   }
   if (input.kioskSerialNumber.trim() === '') {
-    throw new Error('Machine serial number is required.');
+    throw new Error('机器编号不能为空。');
   }
   if (input.kioskLocationName.trim() === '') {
-    throw new Error('Kiosk location is required.');
+    throw new Error('机器地点不能为空。');
   }
   if (!Number.isFinite(input.initialScore) || input.initialScore < 0) {
-    throw new Error('Initial score must be a non-negative number.');
+    throw new Error('初始分数必须为非负数。');
   }
   if (!Number.isFinite(input.initialCoinLoan) || input.initialCoinLoan < 0) {
-    throw new Error('Initial coin loan must be a non-negative number.');
+    throw new Error('初始硬币借款必须为非负数。');
   }
   if (input.dividendRate !== undefined && (!Number.isFinite(input.dividendRate) || input.dividendRate < 0 || input.dividendRate > 1)) {
-    throw new Error('Dividend rate must be between 0 and 1 (representing 0% to 100%).');
+    throw new Error('分红比例必须在 0 到 1 之间（代表 0% 到 100%）。');
   }
   if (input.photoUrls.length === 0) {
-    throw new Error('At least one photo is required for onboarding.');
+    throw new Error('入网至少需要一张照片。');
   }
 
   const onboardingId = input.onboardingId ?? crypto.randomUUID();
@@ -259,7 +259,7 @@ export async function createKioskOnboarding(input: CreateKioskOnboardingInput): 
   const kioskId = row?.kiosk_id;
   const merchantId = row?.merchant_id;
   if (!kioskId || !UUID_RE.test(kioskId) || !merchantId || !UUID_RE.test(merchantId)) {
-    throw new Error('Onboarding created, but required IDs (kiosk/merchant) were not returned by server.');
+    throw new Error('入网创建成功，但服务器未返回必要的ID。请同步数据后重试。');
   }
 
   // Ensure local app can immediately see the new kiosk & onboarding record before next full sync.
@@ -309,13 +309,13 @@ export interface UpdateKioskDetailsInput {
  */
 export async function updateKioskDetails(input: UpdateKioskDetailsInput): Promise<void> {
   if (!UUID_RE.test(input.kioskId)) {
-    throw new Error('Invalid kiosk ID.');
+    throw new Error('无效的机器ID。');
   }
   if (input.serialNumber !== undefined && input.serialNumber.trim() === '') {
-    throw new Error('Serial number cannot be blank.');
+    throw new Error('机器编号不能为空。');
   }
   if (input.initialScore !== undefined && (input.initialScore < 0 || !Number.isFinite(input.initialScore))) {
-    throw new Error('Initial score must be a non-negative number.');
+    throw new Error('初始分数必须为非负数。');
   }
 
   const updates: Record<string, unknown> = {};
@@ -333,7 +333,7 @@ export async function updateKioskDetails(input: UpdateKioskDetailsInput): Promis
     // If modified === 0 the kiosk isn't in the local DB yet; queueing an UPDATE
     // would create an orphan sync item that would fail repeatedly on the server.
     if (modified === 0) {
-      throw new Error('Kiosk not found in local database. Please sync first before updating kiosk details.');
+      throw new Error('本地数据库未找到此机器，请先同步数据。');
     }
 
     await db.sync_queue.add({

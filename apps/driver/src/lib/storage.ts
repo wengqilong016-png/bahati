@@ -161,12 +161,12 @@ async function uploadFileToBucket(
     } catch {
       // Best-effort — if we can't queue it, we just lose it
     }
-    throw new Error(`Upload failed: ${error.message}`);
+    throw new Error(`上传失败: ${error.message}`);
   }
 
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   if (!data?.publicUrl) {
-    throw new Error(`Failed to generate public URL for ${path}`);
+    throw new Error(`无法生成文件链接: ${path}`);
   }
   return data.publicUrl;
 }

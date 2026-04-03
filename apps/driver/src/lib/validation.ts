@@ -12,10 +12,10 @@ export function validateDailyTaskScore(
   lastRecordedScore: number,
 ): string | null {
   if (!Number.isFinite(currentScore) || currentScore < 0) {
-    return 'Score must be a non-negative number.';
+    return '分数必须为非负数';
   }
   if (currentScore <= lastRecordedScore) {
-    return `Score must be greater than the last recorded score (${lastRecordedScore}). If the score decreased, please submit a Score Reset Request instead.`;
+    return `分数必须大于上次记录的分数（${lastRecordedScore}）。如果分数下降，请提交分数重置申请。`;
   }
   return null; // valid
 }
@@ -29,10 +29,10 @@ export function validateScoreResetRequest(
   currentScore: number,
 ): string | null {
   if (!Number.isFinite(requestedNewScore) || requestedNewScore < 0) {
-    return 'Requested score must be a non-negative number.';
+    return '申请分数必须为非负数';
   }
   if (requestedNewScore >= currentScore) {
-    return `Requested new score must be less than the current score (${currentScore}). For a score increase, use a normal Daily Task instead.`;
+    return `申请分数必须小于当前分数（${currentScore}）。如果分数增加，请提交每日任务。`;
   }
   return null; // valid
 }

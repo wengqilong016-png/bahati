@@ -5,6 +5,7 @@ import { db } from '../lib/db';
 import { settleTask } from '../lib/settlement';
 import { pullTasks } from '../lib/sync';
 import { supabase } from '../lib/supabase';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import type { LocalTask, LocalKiosk } from '../lib/types';
 
 type DividendMethod = 'cash' | 'retained';
@@ -197,6 +198,7 @@ interface SettlementFormProps {
 }
 
 function SettlementForm({ task, kiosk, driverBalances, onSettled }: SettlementFormProps) {
+  const isOnline = useOnlineStatus();
   const [dividendMethod, setDividendMethod] = useState<DividendMethod>('cash');
   const [exchangeAmount, setExchangeAmount] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
@@ -377,16 +379,16 @@ function SettlementForm({ task, kiosk, driverBalances, onSettled }: SettlementFo
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || !isOnline}
           style={{
             width: '100%', padding: 14, marginTop: 12,
-            background: submitting ? '#ccc' : '#0066CC', color: '#fff',
+            background: (submitting || !isOnline) ? '#ccc' : '#0066CC', color: '#fff',
             border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 600,
-            cursor: submitting ? 'not-allowed' : 'pointer',
+            cursor: (submitting || !isOnline) ? 'not-allowed' : 'pointer',
             opacity: submitting ? 0.7 : 1,
           }}
         >
-          {submitting ? '提交中...' : '确认结算'}
+          {submitting ? '提交中...' : !isOnline ? '离线无法结算' : '确认结算'}
         </button>
       </form>
     </div>
@@ -399,6 +401,7 @@ export function SettlementPage() {
   const { taskId: routeTaskId } = useParams<{ taskId: string }>();
   const today = todayDarEsSalaam();
   const navigate = useNavigate();
+  const isOnline = useOnlineStatus();
   const [refreshKey, setRefreshKey] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const balanceState = useDriverBalances();
@@ -464,6 +467,12 @@ export function SettlementPage() {
 
       {/* Current balances */}
       <BalanceCard state={balanceState} />
+
+      {!isOnline && (
+        <div style={{ background: '#fff3e0', border: '1px solid #ffe082', borderRadius: 8, padding: 12, marginBottom: 16, textAlign: 'center' }}>
+          <span style={{ fontSize: 14, color: '#e65100' }}>⚠️ 当前离线，结算需要网络连接</span>
+        </div>
+      )}
 
       {/* Pending tasks */}
       {pendingTasks.length > 0 ? (

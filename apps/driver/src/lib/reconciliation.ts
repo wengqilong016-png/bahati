@@ -30,8 +30,8 @@ export async function submitDailyReconciliation(
     p_notes,
   } = params;
 
-  if (p_actual_coin_balance < 0) throw new Error('Actual coin balance cannot be negative.');
-  if (p_actual_cash_balance < 0) throw new Error('Actual cash balance cannot be negative.');
+  if (p_actual_coin_balance < 0) throw new Error('硬币余额不能为负数');
+  if (p_actual_cash_balance < 0) throw new Error('现金余额不能为负数');
 
   const { data, error } = await supabase.rpc('submit_daily_reconciliation', {
     p_driver_id: p_driver_id ?? null,
@@ -42,14 +42,14 @@ export async function submitDailyReconciliation(
   });
 
   if (error) {
-    throw new Error(error.message || 'Daily close submission failed. Please try again.');
+    throw new Error(error.message || '日结提交失败，请重试。');
   }
 
   // Store locally so the UI can show submitted state offline
   const reconciliationId = (data as string | null) ?? crypto.randomUUID();
 
   if (!p_driver_id) {
-    throw new Error('driver_id is required to store reconciliation locally');
+    throw new Error('缺少司机ID，无法保存本地记录');
   }
 
   await db.reconciliations.put({
