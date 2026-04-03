@@ -1,18 +1,20 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { NavSidebar } from './components/NavSidebar';
 import { ToastProvider } from './components/Toast';
 import { LoginPage } from './pages/LoginPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { DriversPage } from './pages/DriversPage';
-import { MerchantsPage } from './pages/MerchantsPage';
-import { KiosksPage } from './pages/KiosksPage';
-import { ScoreResetApprovalsPage } from './pages/ScoreResetApprovalsPage';
-import { ReportsPage } from './pages/ReportsPage';
-import { MapOverviewPage } from './pages/MapOverviewPage';
-import { SettlementsPage } from './pages/SettlementsPage';
-import { DriverLedgerPage } from './pages/DriverLedgerPage';
-import { MerchantLedgerPage } from './pages/MerchantLedgerPage';
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const DriversPage = lazy(() => import('./pages/DriversPage').then(m => ({ default: m.DriversPage })));
+const MerchantsPage = lazy(() => import('./pages/MerchantsPage').then(m => ({ default: m.MerchantsPage })));
+const KiosksPage = lazy(() => import('./pages/KiosksPage').then(m => ({ default: m.KiosksPage })));
+const ScoreResetApprovalsPage = lazy(() => import('./pages/ScoreResetApprovalsPage').then(m => ({ default: m.ScoreResetApprovalsPage })));
+const ReportsPage = lazy(() => import('./pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
+const MapOverviewPage = lazy(() => import('./pages/MapOverviewPage').then(m => ({ default: m.MapOverviewPage })));
+const SettlementsPage = lazy(() => import('./pages/SettlementsPage').then(m => ({ default: m.SettlementsPage })));
+const DriverLedgerPage = lazy(() => import('./pages/DriverLedgerPage').then(m => ({ default: m.DriverLedgerPage })));
+const MerchantLedgerPage = lazy(() => import('./pages/MerchantLedgerPage').then(m => ({ default: m.MerchantLedgerPage })));
 
 function AnimatedPage({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -52,10 +54,17 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+const PageSpinner = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '40vh' }}>
+    <span style={{ color: '#0066CC', fontSize: 16 }}>Loading...</span>
+  </div>
+);
+
 export default function App() {
   return (
     <ToastProvider>
       <BrowserRouter>
+        <Suspense fallback={<PageSpinner />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/dashboard" element={<ProtectedLayout><AnimatedPage><DashboardPage /></AnimatedPage></ProtectedLayout>} />
@@ -70,6 +79,7 @@ export default function App() {
           <Route path="/ledger/merchants" element={<ProtectedLayout><AnimatedPage><MerchantLedgerPage /></AnimatedPage></ProtectedLayout>} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </ToastProvider>
   );
