@@ -25,8 +25,8 @@ jobs:
           CURRENT=$(node -p "require('./package.json').version")
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
 
-          # Check if this version tag already exists
-          if git rev-parse "v$CURRENT" >/dev/null 2>&1; then
+          # Check if this version tag already exists (remote check for shallow clones)
+          if git ls-remote --tags origin "refs/tags/v$CURRENT" | grep -q .; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
