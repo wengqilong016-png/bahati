@@ -1,90 +1,118 @@
 # SmartKiosk — GitHub Copilot Instructions
 
-## Project Summary
+## Build / Test / Lint
 
-SmartKiosk is an offline-first kiosk management system comprising:
-1. **Driver App**: A React + Dexie + Capacitor Android app.
-    - Offline-first, writes to IndexedDB and syncs via `sync_queue`.
-2. **Boss Dashboard**: A React web app for tablets/desktops.
-    - Online-only, communicates directly with Supabase via the JS client.
-3. **Shared backend**: PostgreSQL + Supabase migrations manage schema, with RLS-enforced security.
+```bash
+# Driver App
+cd apps/driver
+npm run build          # tsc + vite build
+npm test               # vitest run (26 tests: validation + settlement calc)
+npm run test:watch     # vitest watch mode
+npx tsc --noEmit       # typecheck only
 
-## Architecture Rules
+# Boss Dashboard
+cd apps/boss
+npm run build          # tsc + vite build
+npx tsc --noEmit       # typecheck only
 
-### Schema Reference
-- Use **Phase 1/2 table names**. Ignore legacy schema.
+# Run a single test file
+cd apps/driver && npx vitest run src/lib/__tests__/validation.test.ts
 
-| Legacy Table/Column        | Current Table/Column               |
-|----------------------------|------------------------------------|
-| `profiles`                 | `drivers`                          |
-| `machines`                 | `kiosks`                           |
-| `machine_id` (column)      | `kiosk_id`                         |
-| (See README for full table mapping) |
+# Supabase
+supabase db push       # deploy migrations to production (requires `supabase link` first)
+```
 
-### Role-based Logic
-- **Driver Role**: Rows exist in `drivers` table.
-- **Boss Role**: Identified via `auth.users.raw_user_meta_data->>'role' = 'boss'`. No entry in `drivers`.
+CI runs typecheck on both apps (`.github/workflows/ci.yml`) and builds APK on version bump (`.github/workflows/release-driver-apk.yml`).
 
-> Always call `public.current_user_role()` for roles instead of hardcoding.
+## Architecture
 
----
+**Two apps, one Supabase backend:**
 
-### Offline Sync — Driver App:
-- Writes always queue:
-  - IndexedDB (Dexie) → `sync_queue`.
-  - **Retry Logic**: Max 3 attempts, conflict resolution handled server-side.
+- **Driver App** (`apps/driver/`): React + Dexie + Capacitor 8 Android. Offline-first — all writes go to IndexedDB first, then sync via `sync_queue`. Targets low-end Android phones.
+- **Boss Dashboard** (`apps/boss/`): React web app. Online-only, talks directly to Supabase. Uses react-leaflet for kiosk map.
+- **Backend** (`supabase/`): PostgreSQL with RLS + SECURITY DEFINER RPCs. Edge Function `invite-driver` for driver account creation.
 
----
+### Driver App offline sync flow
 
-### Security Layers:
-- **RLS Policies**:
-  - Drivers access their data only.
-  - Boss operations require `SECURITY DEFINER` RPC calls.
+```
+User action → Dexie (local) + sync_queue entry
+                     ↓
+              processQueue() → Supabase REST INSERT/UPDATE
+                     ↓
+              markSynced() → update local sync_status
+```
 
-- **Prohibited Actions**:
-  - No `UPDATE` on `drivers.coin_balance` or `cash_balance`. Use designated RPCs.
-  - No merchant balance reads for `authenticated` users. Boss-only via RPC.
+- `sync.ts`: `startSync()` pulls 5 tables from server, retries pending photo uploads, then pushes `sync_queue`.
+- `actions.ts`: All save functions (`saveDailyTask`, `saveOnboarding`, `saveScoreResetRequest`) write Dexie + enqueue.
+- `storage.ts`: Photo compression (max 1280px, JPEG 0.7-0.4 progressive), offline queue in localStorage.
+- INSERT duplicate key (Postgres 23505) is treated as success (idempotent retry).
+- MAX_RETRIES = 3.
 
----
+### Settlement & reconciliation are online-only
 
-### Financial Logic Scope:
-- Arithmetic in server-side procedures only (`submit_daily_reconciliation`).
-- Drivers input balances only at close of day.
+`settleTask()` and `submitDailyReconciliation()` call RPCs directly — no offline queue. Both pages show offline warnings and disable submit when `navigator.onLine` is false.
 
----
+### Role system
 
-## Coding Standards
+- **Driver**: Has row in `drivers` table. Call `public.current_user_role()`.
+- **Boss**: `auth.users.raw_user_meta_data->>'role' = 'boss'`. No `drivers` row. Create via `supabase/sql/create_boss_account.sql`.
+- Boss RPCs use `is_boss()` guard + `SECURITY DEFINER`.
+
+### Photo storage
+
+Two Supabase Storage buckets with RLS (driver can only write to `{auth.uid()}/` prefix):
+- `task-photos`: Daily task score verification photos
+- `onboarding-photos`: Kiosk onboarding photos
+
+### GPS
+
+- `@capacitor/geolocation` plugin (auto-merges Android permissions via `cap sync`).
+- `useGeolocation` hook in `apps/driver/src/hooks/`.
+- Coordinates sent with tasks and onboarding records; `approve_onboarding` RPC copies GPS from record to kiosk.
+
+## Key Conventions
+
+### Schema naming
+
+Use Phase 1/2 names. Legacy names exist in early migrations but are superseded:
+
+| Legacy | Current |
+|--------|---------|
+| `profiles` | `drivers` |
+| `machines` | `kiosks` |
+| `machine_id` | `kiosk_id` |
+
+### Financial logic is server-side only
+
+Never compute dividends, settlement amounts, or reconciliation totals in client code. The only exception is `settlementCalc.ts` which provides a **read-only projection preview** for the driver UI.
+
+### Prohibited mutations
+
+- No direct `UPDATE` on `drivers.coin_balance` or `cash_balance` — use RPCs.
+- No merchant balance reads for `authenticated` role — boss-only via `read_merchant_balances()` RPC.
 
 ### TypeScript
-- **Strict Mode** enforced.
-- Avoid `any`; use `unknown` with type narrowing.
 
-### React
-- **Stateless Functional Components + Hooks Only**:
-  - Extract custom hooks for data-fetching and sync logic:
-    `useSync`, `useKiosks`.
+- Strict mode enforced. No `any`; use `unknown` with narrowing.
+- Supabase calls: always destructure `{ data, error }`.
 
-### Supabase
-- Always destructure `{ data, error }`.
-- Use typed clients and RPCs.
+### Localization
 
-### SQL
-- New migrations follow: `YYYYMMDDHHMMSS_name.sql`.
+- **Both apps are fully in Chinese (中文)**. All UI text, error messages, validation messages, and loading states must be in Chinese.
+- Timezone: `Africa/Dar_es_Salaam` (UTC+3). Helper: `getTodayDarEsSalaam()`.
+- Currency: TZS. Helper: `fmtTZS()` / `fmtCurrency()`.
 
----
+### SQL migrations
 
-## Testing and CI Requirements
+Naming: `YYYYMMDDHHMMSS_descriptive_name.sql` in `supabase/migrations/`.
 
-- Validate both apps with `npm run build`.
-- Document manual test steps for sync queues, RLS, or RPC logic PRs.
+### Dexie
 
----
+- Current schema version: **7** (`apps/driver/src/lib/db.ts`).
+- Bump version and add a new `.stores()` block for any schema change.
 
-## Pitfalls to Avoid
+### Capacitor
 
-1. Stick to Vite 6.x (`package.json` locked).
-2. Do NOT use Capacitor 7+ (`Driver App`: Capacitor `6.2.x`).
-3. Avoid `localStorage` queuing; Dexie is preferred.
-4. Boss accounts: Create via `supabase/sql/create_boss_account.sql`.
-
----
+- **Capacitor 8** (`@capacitor/core ^8.0.0`). Do NOT downgrade.
+- Vite 6.x — do not upgrade.
+- Avoid `localStorage` for data queuing; use Dexie.
