@@ -10,6 +10,8 @@ export interface PhotoCaptureProps {
   /** Maximum number of photos allowed (default 5). */
   maxPhotos?: number;
   disabled?: boolean;
+  /** Called whenever the number of in-progress uploads changes. */
+  onPendingChange?: (count: number) => void;
 }
 
 interface UploadItem {
@@ -27,6 +29,7 @@ export function PhotoCapture({
   uploadFn,
   maxPhotos = 5,
   disabled = false,
+  onPendingChange,
 }: PhotoCaptureProps) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -39,6 +42,13 @@ export function PhotoCapture({
   // Track latest uploading items for cleanup on unmount
   const uploadingRef = useRef(uploading);
   uploadingRef.current = uploading;
+
+  // Notify parent of pending upload count whenever it changes.
+  // onPendingChange is expected to be a stable setter (e.g. useState setter),
+  // so including it in the dependency array is safe and avoids stale-ref issues.
+  useEffect(() => {
+    onPendingChange?.(uploading.length);
+  }, [uploading.length, onPendingChange]);
 
   // Revoke all pending object URLs when the component unmounts to prevent memory leaks
   useEffect(() => {
@@ -63,7 +73,7 @@ export function PhotoCapture({
       URL.revokeObjectURL(previewUrl);
       onPhotosChange([...photosRef.current, url]);
     } catch (err) {
-      const error = err instanceof Error ? err.message : 'Upload failed';
+      const error = err instanceof Error ? err.message : '上传失败';
       setUploading(prev =>
         prev.map(u => (u.id === id ? { ...u, status: 'error' as const, error } : u)),
       );
@@ -89,7 +99,7 @@ export function PhotoCapture({
         URL.revokeObjectURL(item.previewUrl);
         onPhotosChange([...photosRef.current, url]);
       } catch (err) {
-        const error = err instanceof Error ? err.message : 'Upload failed';
+        const error = err instanceof Error ? err.message : '上传失败';
         setUploading(prev =>
           prev.map(u => (u.id === item.id ? { ...u, status: 'error' as const, error } : u)),
         );
@@ -209,7 +219,7 @@ export function PhotoCapture({
                   background: 'rgba(0,0,0,0.3)', borderRadius: 6,
                   color: '#fff', fontSize: 10,
                 }}>
-                  Uploading…
+                  上传中…
                 </div>
               )}
               {item.status === 'error' && (
@@ -220,7 +230,7 @@ export function PhotoCapture({
                     background: 'rgba(198,40,40,0.7)', borderRadius: 6,
                     color: '#fff', fontSize: 9, padding: 2, textAlign: 'center',
                   }}>
-                    <span>Failed</span>
+                    <span>上传失败</span>
                     <button
                       type="button"
                       onClick={() => retryUpload(item)}
@@ -230,7 +240,7 @@ export function PhotoCapture({
                         cursor: 'pointer', padding: '1px 4px',
                       }}
                     >
-                      Retry
+                      重试
                     </button>
                   </div>
                   <button

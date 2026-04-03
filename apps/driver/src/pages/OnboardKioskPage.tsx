@@ -49,6 +49,12 @@ export function OnboardKioskPage() {
   const title = isRecert ? '复查' : '新机入网';
   const submitLabel = isRecert ? '提交复查' : '提交入网';
 
+  // Auto-capture GPS when the page mounts (non-blocking)
+  useEffect(() => {
+    void geo.capture();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Clear mode-specific fields when switching between onboarding and re-certification
   useEffect(() => {
     if (isRecert) {
@@ -123,7 +129,22 @@ export function OnboardKioskPage() {
         });
       }
       setSaved(true);
-      setTimeout(() => navigate('/home'), 1200);
+      // Reset form for next entry (stay on page for continuous input)
+      onboardingIdRef.current = crypto.randomUUID();
+      setKioskId('');
+      setSerialNumber('');
+      setMerchantName('');
+      setMerchantContactName('');
+      setMerchantPhone('');
+      setLocationName('');
+      setInitialScore('');
+      setInitialCoinLoan('');
+      setDividendRate('15');
+      setNotes('');
+      setPhotos([]);
+      // Auto-dismiss the success banner; timer is tracked so it won't fire after unmount
+      const t = window.setTimeout(() => setSaved(false), 4000);
+      return () => window.clearTimeout(t);
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存失败');
     } finally {

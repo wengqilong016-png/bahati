@@ -33,7 +33,7 @@ export function useGeolocation(): UseGeolocationReturn {
       if (perm.location !== 'granted') {
         const req = await Geolocation.requestPermissions();
         if (req.location !== 'granted') {
-          setError('GPS permission denied');
+          setError('未授权定位权限');
           setLoading(false);
           return null;
         }
@@ -53,7 +53,7 @@ export function useGeolocation(): UseGeolocationReturn {
       setLoading(false);
       return result;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to get GPS location';
+      const msg = err instanceof Error ? err.message : '定位失败，请检查GPS是否开启';
       setError(msg);
       setLoading(false);
       return null;

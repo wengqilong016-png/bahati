@@ -3,7 +3,7 @@ import { useConnectionStatus, type ConnectionStatus } from '../hooks/useConnecti
 
 const tabs = [
   { to: '/home', label: '首页', icon: '🏠' },
-  { to: '/kiosks', label: '机器', icon: '🏪' },
+  { to: '/work', label: '工作', icon: '🏪' },
   { to: '/onboard', label: '入网', icon: '➕' },
   { to: '/settlement', label: '结算', icon: '💰' },
   { to: '/reconciliation', label: '日结', icon: '📋' },
