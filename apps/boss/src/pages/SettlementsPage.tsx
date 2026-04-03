@@ -93,7 +93,7 @@ export function SettlementsPage() {
       render: row => {
         if (row.status !== 'submitted') return null;
         const id = String(row.id);
-        const disabled = confirmingId === id;
+        const disabled = confirmingId !== null;
 
         return (
           <button
@@ -110,7 +110,7 @@ export function SettlementsPage() {
               fontWeight: 600,
             }}
           >
-            {disabled ? 'Confirming...' : 'Confirm'}
+            {confirmingId === id ? 'Confirming...' : 'Confirm'}
           </button>
         );
       },

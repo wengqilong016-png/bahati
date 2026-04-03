@@ -77,6 +77,8 @@ BEGIN
 END;
 $$;
 
--- Grant execute to authenticated role
+-- Grant execute to authenticated role (revoke public first)
+REVOKE ALL ON FUNCTION public.approve_onboarding(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.reject_onboarding(UUID, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.approve_onboarding(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.reject_onboarding(UUID, TEXT) TO authenticated;

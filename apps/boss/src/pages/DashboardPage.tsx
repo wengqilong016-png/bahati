@@ -180,6 +180,20 @@ export function DashboardPage() {
 
       if (cancelled) return;
 
+      // Check for query failures
+      const queryErrors = [
+        settlementsRes.error,
+        merchantsRes.error,
+        driversRes.error,
+        reconcRes.error,
+        discrepRes.error,
+        approvalsRes.error,
+        weekRes.error,
+      ].filter(Boolean);
+      if (queryErrors.length > 0) {
+        setError(`数据加载失败: ${queryErrors[0]!.message}`);
+      }
+
       const settlements = settlementsRes.data ?? [];
       let todayRevenue = 0, todayExchange = 0, todayExpense = 0, todayRetainedDividend = 0;
       for (const s of settlements) {
@@ -190,13 +204,9 @@ export function DashboardPage() {
       }
 
       let merchantTotalDebt = 0, merchantTotalRetained = 0;
-      if (merchantsRes.error) {
-        setError('数据加载失败');
-      } else {
-        for (const m of (merchantsRes.data ?? []) as { merchant_id: string; retained_balance: number; debt_balance: number }[]) {
-          merchantTotalDebt += Number(m.debt_balance) || 0;
-          merchantTotalRetained += Number(m.retained_balance) || 0;
-        }
+      for (const m of (merchantsRes.data ?? []) as { merchant_id: string; retained_balance: number; debt_balance: number }[]) {
+        merchantTotalDebt += Number(m.debt_balance) || 0;
+        merchantTotalRetained += Number(m.retained_balance) || 0;
       }
 
       const activeDriverIds = new Set((driversRes.data ?? []).map(d => d.id));

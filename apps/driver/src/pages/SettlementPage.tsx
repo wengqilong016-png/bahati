@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, FormEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../lib/db';
@@ -29,13 +29,37 @@ interface DriverBalances {
   cash_balance: number;
 }
 
-function useDriverBalances(): DriverBalances | null {
+interface BalanceState {
+  balances: DriverBalances | null;
+  error: string | null;
+  loading: boolean;
+  refresh: () => void;
+}
+
+function useDriverBalances(): BalanceState {
   const [balances, setBalances] = useState<DriverBalances | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [trigger, setTrigger] = useState(0);
+
+  const refresh = useCallback(() => setTrigger(n => n + 1), []);
+
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setError(null);
     (async () => {
-      const { data, error } = await supabase.rpc('read_driver_balances');
-      if (!error && data && !cancelled) {
+      try {
+        const { data, error: rpcErr } = await supabase.rpc('read_driver_balances');
+        if (cancelled) return;
+        if (rpcErr) {
+          setError(rpcErr.message);
+          return;
+        }
+        if (!data) {
+          setError('No balance data returned');
+          return;
+        }
         const row = Array.isArray(data) ? data[0] : data;
         if (row) {
           setBalances({
@@ -43,26 +67,54 @@ function useDriverBalances(): DriverBalances | null {
             cash_balance: Number(row.cash_balance) || 0,
           });
         }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load balances');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, []);
-  return balances;
+  }, [trigger]);
+
+  return { balances, error, loading, refresh };
 }
 
 // ---- Sub-components ----
 
-function BalanceCard({ balances }: { balances: DriverBalances | null }) {
-  if (!balances) return null;
+function BalanceCard({ state }: { state: BalanceState }) {
+  if (state.loading && !state.balances) {
+    return (
+      <div style={{ background: '#f5f5f5', borderRadius: 8, padding: 14, marginBottom: 16, textAlign: 'center' }}>
+        <p style={{ margin: 0, fontSize: 13, color: '#888' }}>Loading balances…</p>
+      </div>
+    );
+  }
+  if (state.error && !state.balances) {
+    return (
+      <div style={{ background: '#fce8e6', borderRadius: 8, padding: 14, marginBottom: 16, textAlign: 'center' }}>
+        <p style={{ margin: '0 0 8px', fontSize: 13, color: '#c62828' }}>⚠️ {state.error}</p>
+        <button
+          type="button"
+          onClick={state.refresh}
+          style={{ background: '#c62828', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: 13, cursor: 'pointer' }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+  if (!state.balances) return null;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
       <div style={{ background: '#e3f2fd', borderRadius: 8, padding: 12, textAlign: 'center' }}>
         <p style={{ margin: 0, fontSize: 11, color: '#1565c0', fontWeight: 600 }}>🪙 Coin Balance</p>
-        <p style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 700, color: '#0d47a1' }}>{fmtTZS(balances.coin_balance)}</p>
+        <p style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 700, color: '#0d47a1' }}>{fmtTZS(state.balances.coin_balance)}</p>
       </div>
       <div style={{ background: '#e8f5e9', borderRadius: 8, padding: 12, textAlign: 'center' }}>
         <p style={{ margin: 0, fontSize: 11, color: '#2e7d32', fontWeight: 600 }}>💵 Cash Balance</p>
-        <p style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 700, color: '#1b5e20' }}>{fmtTZS(balances.cash_balance)}</p>
+        <p style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 700, color: '#1b5e20' }}>{fmtTZS(state.balances.cash_balance)}</p>
       </div>
     </div>
   );
@@ -349,7 +401,7 @@ export function SettlementPage() {
   const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
   const [syncing, setSyncing] = useState(false);
-  const driverBalances = useDriverBalances();
+  const balanceState = useDriverBalances();
 
   const tasks = useLiveQuery(
     () => db.tasks.where('task_date').equals(today).toArray(),
@@ -376,6 +428,7 @@ export function SettlementPage() {
   // In single mode, after settlement go to kiosks page
   const handleSettled = () => {
     setRefreshKey(k => k + 1);
+    balanceState.refresh();
   };
 
   const handleRefresh = async () => {
@@ -410,7 +463,7 @@ export function SettlementPage() {
       {singleMode && <h2 style={{ margin: '0 0 12px', color: '#0066CC', fontSize: 18 }}>Task Settlement</h2>}
 
       {/* Current balances */}
-      <BalanceCard balances={driverBalances} />
+      <BalanceCard state={balanceState} />
 
       {/* Pending tasks */}
       {pendingTasks.length > 0 ? (
@@ -421,7 +474,7 @@ export function SettlementPage() {
               key={task.id}
               task={task}
               kiosk={kioskMap.get(task.kiosk_id)}
-              driverBalances={driverBalances}
+              driverBalances={balanceState.balances}
               onSettled={handleSettled}
               singleMode={singleMode}
             />
