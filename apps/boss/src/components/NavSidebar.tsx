@@ -66,6 +66,18 @@ const NavIcons: Record<string, React.FC<{ size?: number; color?: string }>> = {
       <line x1="9" y1="3" x2="9" y2="18" /><line x1="15" y1="6" x2="15" y2="21" />
     </svg>
   ),
+  settlements: ({ size = 18, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" />
+      <rect x="8" y="2" width="8" height="4" rx="1" /><line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="16" x2="13" y2="16" />
+    </svg>
+  ),
+  ledger: ({ size = 18, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 19.5A2.5 2.5 0 016.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+      <line x1="8" y1="7" x2="16" y2="7" /><line x1="8" y1="11" x2="14" y2="11" />
+    </svg>
+  ),
   more: ({ size = 18, color = 'currentColor' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="5" cy="12" r="1" fill={color} /><circle cx="12" cy="12" r="1" fill={color} /><circle cx="19" cy="12" r="1" fill={color} />
@@ -95,7 +107,10 @@ const navItems = [
   { to: '/kiosks', label: '机器管理', iconKey: 'kiosks' },
   { to: '/tasks', label: '每日任务', iconKey: 'tasks' },
   { to: '/approvals', label: '审批中心', iconKey: 'approvals' },
+  { to: '/settlements', label: '日结对账', iconKey: 'settlements' },
   { to: '/reports', label: '报表中心', iconKey: 'reports' },
+  { to: '/ledger/drivers', label: '司机台账', iconKey: 'ledger' },
+  { to: '/ledger/merchants', label: '商家台账', iconKey: 'ledger' },
   { to: '/map', label: '地图概览', iconKey: 'map' },
 ];
 

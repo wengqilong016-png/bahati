@@ -64,7 +64,7 @@ async function _pullTasks(userId: string): Promise<void> {
   const { data, error } = await supabase
     .from('tasks')
     .select(
-      'id, kiosk_id, task_date, score_before, current_score, gross_revenue, dividend_rate_snapshot, dividend_amount, dividend_method, exchange_amount, expense_amount, expense_note, settlement_status, created_at',
+      'id, kiosk_id, task_date, score_before, current_score, gross_revenue, dividend_rate_snapshot, dividend_amount, dividend_method, exchange_amount, expense_amount, expense_note, settlement_status, photo_urls, notes, created_at',
     )
     .eq('driver_id', userId)
     .eq('task_date', today);
@@ -75,13 +75,15 @@ async function _pullTasks(userId: string): Promise<void> {
   }
 
   if (data && data.length > 0) {
-    // Preserve local-only fields (photo_urls, notes) that are not stored server-side
+    // Preserve local photo_urls/notes as fallback if server data is empty (upload still pending)
     const ids = data.map(t => (t as Record<string, unknown>).id as string);
     const existingRows = await db.tasks.bulkGet(ids);
     const existingMap = new Map(existingRows.filter(Boolean).map(t => [t!.id, t!]));
 
     const rows = data.map((t: Record<string, unknown>) => {
       const local = existingMap.get(t.id as string);
+      const serverPhotos = Array.isArray(t.photo_urls) ? t.photo_urls as string[] : [];
+      const serverNotes = typeof t.notes === 'string' ? t.notes : '';
       return {
         id: t.id as string,
         kiosk_id: t.kiosk_id as string,
@@ -96,9 +98,9 @@ async function _pullTasks(userId: string): Promise<void> {
         expense_amount: t.expense_amount as number | undefined,
         expense_note: t.expense_note as string | undefined,
         settlement_status: t.settlement_status as 'pending' | 'settled' | undefined,
-        // Merge: keep local photo_urls/notes if present, otherwise empty defaults
-        photo_urls: local?.photo_urls?.length ? local.photo_urls : [],
-        notes: local?.notes || '',
+        // Prefer server photo_urls/notes; fall back to local if server is empty (upload may still be pending)
+        photo_urls: serverPhotos.length > 0 ? serverPhotos : (local?.photo_urls ?? []),
+        notes: serverNotes || (local?.notes ?? ''),
         sync_status: 'synced' as const,
         created_at: t.created_at as string,
       };
@@ -262,7 +264,7 @@ export async function pullKiosks(): Promise<void> {
 /**
  * Pull today's tasks for the current driver from Supabase into local DB.
  * Uses Africa/Dar_es_Salaam timezone to determine "today".
- * Preserves local photo_urls and notes to avoid clobbering unsynchronised data.
+ * Fetches photo_urls and notes from server; falls back to local if server is empty.
  */
 export async function pullTasks(): Promise<void> {
   const {
